@@ -45,7 +45,6 @@ bool connectInternet() {
   WiFi.mode(WIFI_AP_STA);
   WiFi.begin(settings().wifiSsid.c_str(), settings().wifiPassword.c_str());
   Serial.print("[OTA] Connecting to configured Wi-Fi");
-
   const uint32_t started = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - started < WIFI_CONNECT_TIMEOUT_MS) {
     Serial.print('.');
@@ -66,13 +65,11 @@ bool connectInternet() {
 String fetchText(const char *url) {
   WiFiClientSecure client;
   client.setInsecure(); // Prototype only; production will use certificate verification.
-
   HTTPClient http;
   http.setConnectTimeout(OTA_HTTP_TIMEOUT_MS);
   http.setTimeout(OTA_HTTP_TIMEOUT_MS);
   http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
   if (!http.begin(client, url)) return String();
-
   int code = http.GET();
   String body;
   if (code == HTTP_CODE_OK) body = http.getString();
@@ -84,7 +81,6 @@ String fetchText(const char *url) {
 bool performUpdate(const String &remoteVersion) {
   WiFiClientSecure client;
   client.setInsecure(); // Prototype only; production will use certificate verification.
-
   HTTPClient http;
   http.setConnectTimeout(OTA_HTTP_TIMEOUT_MS);
   http.setTimeout(OTA_HTTP_TIMEOUT_MS);
@@ -137,7 +133,6 @@ bool performUpdate(const String &remoteVersion) {
   }
 
   http.end();
-
   if (written != (size_t)total || !Update.end(true)) {
     Serial.printf("[OTA] Update validation failed: %s\n", Update.errorString());
     return false;
@@ -151,7 +146,6 @@ bool performUpdate(const String &remoteVersion) {
 
 void checkForUpdate() {
   if (!connectInternet()) return;
-
   Serial.printf("[OTA] Current firmware: %s\n", JSPL_FW_VERSION);
   Serial.println("[OTA] Checking latest GitHub release...");
 
@@ -160,7 +154,6 @@ void checkForUpdate() {
     Serial.println("[OTA] No release version found; continuing normally.");
     return;
   }
-
   if (!versionNewer(remoteVersion, JSPL_FW_VERSION)) {
     Serial.printf("[OTA] Firmware is current (%s).\n", JSPL_FW_VERSION);
     return;
@@ -218,7 +211,8 @@ void otaTask(void *) {
   checkForUpdate();
   for (;;) vTaskDelay(pdMS_TO_TICKS(60000));
 }
-}
+
+} // namespace
 
 void otaStart() {
   static bool started = false;
