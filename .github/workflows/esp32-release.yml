@@ -25,11 +25,20 @@ jobs:
           export VERSION
           python - <<'PY'
           import os
+          import re
           from pathlib import Path
+
           version = os.environ["VERSION"]
           path = Path("src/version.h")
           text = path.read_text()
-          text = text.replace('#define JSPL_FW_VERSION "1.0.0"', f'#define JSPL_FW_VERSION "{version}"')
+          text, count = re.subn(
+              r'#define JSPL_FW_VERSION\s+"[^"]+"',
+              f'#define JSPL_FW_VERSION "{version}"',
+              text,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit("JSPL_FW_VERSION definition not found")
           path.write_text(text)
           PY
           echo "$VERSION" > ota-version.txt
