@@ -73,7 +73,7 @@ During release mode it switches to a focused screen showing waiting and exited c
 
 ### Pinout
 
-The current configuration is in `src/config.h`.
+The current hardware configuration is in `src/config.h`.
 
 | Function | GPIO |
 |---|---:|
@@ -107,13 +107,111 @@ The ESP32 creates a temporary local Wi-Fi access point:
 
 - SSID: `JSPL-PVM-GATE`
 - Password: `jsplgate1`
-- Web page: `http://192.168.4.1`
+- Dashboard: `http://192.168.4.1`
+- Settings: `http://192.168.4.1/settings`
 
-The web page is currently a **live monitor** of the physical counter. Physical buttons are the primary control for this V1.
+The dashboard is a live monitor of the physical counter. Physical buttons remain the primary operational controls for V1.
 
-## Persistent storage
+## Self-hosted device settings
 
-Counts are stored using ESP32 `Preferences` (NVS), so the waiting counts survive a normal reboot/power cycle.
+The ESP32 has its own configuration page. No computer or external server is required.
+
+Open:
+
+```text
+http://192.168.4.1/settings
+```
+
+The settings page supports:
+
+### Device
+
+- Device ID
+- Device name
+- Showroom
+- Installation point
+
+### Bus preparation
+
+The bus controller is not active in V1, but the reusable device configuration already supports:
+
+- Vehicle registration number
+- Bus capacity
+- Bus enabled/disabled
+
+The final project will use the **vehicle registration number as the bus identifier**.
+
+### Destinations
+
+Each of the three physical buttons can be configured without recompiling the firmware:
+
+- Button 1 code/name
+- Button 2 code/name
+- Button 3 code/name
+
+Default configuration:
+
+```text
+Button 1 → KAL / Kaloor
+Button 2 → VYT / Vytilla
+Button 3 → VAZ / Vazhakala
+```
+
+### Operation
+
+The following parameters are stored in the ESP32:
+
+- Long-press duration — default 10,000 ms
+- Button debounce — default 35 ms
+- OLED message duration — default 1,800 ms
+
+### Security
+
+Settings changes require the local administrator PIN.
+
+Default development PIN:
+
+```text
+1234
+```
+
+**Change this before operational deployment.**
+
+The configuration is stored in ESP32 NVS using `Preferences`, so it survives a normal reboot.
+
+## Configuration architecture
+
+Hardware-specific values remain in `src/config.h`:
+
+```text
+GPIO pins
+OLED pins
+buzzer pin
+screen dimensions
+```
+
+Operational/device values are stored in NVS and can be changed from `/settings`:
+
+```text
+Device name
+Showroom
+Installation
+Bus registration
+Bus capacity
+Destinations
+Long-press duration
+Debounce
+Message duration
+Admin PIN
+```
+
+This allows the same firmware to be deployed at different JSPL showrooms without creating a separate firmware build for each location.
+
+## Persistent counter storage
+
+Counts are stored using ESP32 `Preferences` (NVS), so waiting counts survive a normal reboot/power cycle.
+
+Factory reset from the settings page resets **configuration only**. It does not silently erase the staff counters.
 
 ## Build
 
@@ -124,7 +222,8 @@ Then:
 1. Open Serial Monitor at 115200 baud.
 2. Connect a phone to `JSPL-PVM-GATE`.
 3. Open `http://192.168.4.1`.
-4. Test the three buttons.
+4. Open `/settings` to configure the device.
+5. Test the three physical buttons.
 
 ## Current scope
 
@@ -132,9 +231,10 @@ This version intentionally does **not** include:
 
 - Bus controllers
 - Bus capacity enforcement
-- Bus registration assignment
+- Physical bus boarding counters
 - Multi-trip management
 - Cloud synchronization
 - JSPL IoT integration
+- OTA update service
 
-Those will be added only after the physical counter workflow is proven at Palarivattom.
+These will be added after the physical counter workflow is proven at Palarivattom.
