@@ -1,6 +1,7 @@
 from datetime import datetime, timezone
 
 from fastapi import Depends, FastAPI, HTTPException, status
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -19,6 +20,13 @@ from .schemas import (
 )
 
 app = FastAPI(title="JSPL Transport Management API", version="0.1.0")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:8080", "http://127.0.0.1:8080"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 @app.on_event("startup")
@@ -71,11 +79,7 @@ def create_trip(payload: TripCreate, db: Session = Depends(get_db)) -> Trip:
         raise HTTPException(status_code=404, detail="Showroom not found")
     if not db.get(Bus, payload.bus_id):
         raise HTTPException(status_code=404, detail="Bus not found")
-    trip = Trip(
-        showroom_id=payload.showroom_id,
-        bus_id=payload.bus_id,
-        route_name=payload.route_name,
-    )
+    trip = Trip(showroom_id=payload.showroom_id, bus_id=payload.bus_id, route_name=payload.route_name)
     db.add(trip)
     db.commit()
     db.refresh(trip)
