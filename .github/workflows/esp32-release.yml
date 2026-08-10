@@ -40,6 +40,9 @@ jobs:
       - name: Build firmware
         run: pio run
 
+      - name: Generate firmware checksum
+        run: sha256sum .pio/build/esp32dev/firmware.bin | awk '{print $1}' > firmware.sha256
+
       - name: Publish GitHub Release
         working-directory: .
         env:
@@ -48,5 +51,6 @@ jobs:
           gh release create "$GITHUB_REF_NAME" \
             "firmware/esp32-minimal/.pio/build/esp32dev/firmware.bin" \
             "firmware/esp32-minimal/ota-version.txt" \
+            "firmware/esp32-minimal/firmware.sha256" \
             --title "$GITHUB_REF_NAME" \
             --generate-notes
