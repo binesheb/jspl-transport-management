@@ -4,6 +4,12 @@ This firmware is the first real hardware prototype for the Palarivattom showroom
 
 It runs **completely on one ESP32**. The ESP32 hosts the web server and can also create its own Wi-Fi access point, so no cloud server, Raspberry Pi, PC or Internet connection is required for the pilot.
 
+## Circuit diagram
+
+![Palarivattom V1 circuit diagram](../../docs/hardware/circuit-diagram.svg)
+
+Full-size diagram: `docs/hardware/circuit-diagram.svg`
+
 ## What this version does
 
 Three hostel/destination buttons:
@@ -39,7 +45,7 @@ Release mode
 Confirm
 
 KAL waiting = 63
-``` 
+```
 
 The bus controller is **not part of V1**. This device is only a reliable three-channel counter for staff available to board.
 
