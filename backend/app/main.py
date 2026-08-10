@@ -86,6 +86,11 @@ def create_trip(payload: TripCreate, db: Session = Depends(get_db)) -> Trip:
     return trip
 
 
+@app.get("/api/trips", response_model=list[TripRead])
+def list_trips(db: Session = Depends(get_db)) -> list[Trip]:
+    return list(db.scalars(select(Trip).order_by(Trip.started_at.desc().nullslast(), Trip.id.desc())))
+
+
 @app.post("/api/trips/{trip_id}/start", response_model=TripRead)
 def start_trip(trip_id: str, db: Session = Depends(get_db)) -> Trip:
     trip = db.get(Trip, trip_id)
