@@ -8,8 +8,6 @@
 #include "version.h"
 #include "ota.h"
 
-// The main application owns the port-80 server. This module adds routes to it
-// after Arduino setup has completed, without coupling OTA logic to the counter.
 extern WebServer server;
 
 namespace {
@@ -22,8 +20,8 @@ constexpr uint32_t OTA_HTTP_TIMEOUT_MS = 15000;
 bool versionNewer(const String &remote, const String &local) {
   int r[3] = {0, 0, 0};
   int l[3] = {0, 0, 0};
-  sscanf(remote.c_str(), "%d.%d.%d", &r[0], &r[1], &r[2]);
-  sscanf(local.c_str(), "%d.%d.%d", &l[0], &l[1], &l[2]);
+  if (sscanf(remote.c_str(), "%d.%d.%d", &r[0], &r[1], &r[2]) != 3) return false;
+  if (sscanf(local.c_str(), "%d.%d.%d", &l[0], &l[1], &l[2]) != 3) return false;
   for (int i = 0; i < 3; ++i) {
     if (r[i] != l[i]) return r[i] > l[i];
   }
@@ -36,15 +34,6 @@ String htmlEscape(String s) {
   s.replace(">", "&gt;");
   s.replace("\"", "&quot;");
   return s;
-}
-
-void drawOtaMessage(const char *title, const char *body) {
-  // Keep this module independent from the OLED object. Serial output is the
-  // authoritative OTA diagnostic; the main OLED remains available to the counter.
-  Serial.print("[OTA] ");
-  Serial.print(title);
-  Serial.print(" - ");
-  Serial.println(body);
 }
 
 bool connectInternet() {
@@ -76,7 +65,7 @@ bool connectInternet() {
 
 String fetchText(const char *url) {
   WiFiClientSecure client;
-  client.setInsecure(); // Prototype transport. Certificate pinning will be added before production rollout.
+  client.setInsecure(); // Prototype only; production will use certificate verification.
 
   HTTPClient http;
   http.setConnectTimeout(OTA_HTTP_TIMEOUT_MS);
@@ -94,7 +83,7 @@ String fetchText(const char *url) {
 
 bool performUpdate(const String &remoteVersion) {
   WiFiClientSecure client;
-  client.setInsecure(); // See production note above.
+  client.setInsecure(); // Prototype only; production will use certificate verification.
 
   HTTPClient http;
   http.setConnectTimeout(OTA_HTTP_TIMEOUT_MS);
@@ -188,9 +177,10 @@ String networkPage(const String &notice = "") {
   h += "<div class='panel'><form method='POST' action='/api/network/save'>";
   h += "<label>Wi-Fi SSID</label><input name='ssid' value='" + htmlEscape(settings().wifiSsid) + "'>";
   h += "<label>Wi-Fi Password</label><input type='password' name='password' value='" + htmlEscape(settings().wifiPassword) + "'>";
+  h += "<label>Administrator PIN</label><input type='password' name='pin' required>";
   h += "<button type='submit'>SAVE NETWORK</button></form></div>";
   h += "<div class='panel'><b>Firmware</b><p>Current: " + String(JSPL_FW_VERSION) + "</p>";
-  h += "<form method='POST' action='/api/ota/check'><button type='submit'>CHECK FOR UPDATE NOW</button></form>";
+  h += "<form method='POST' action='/api/ota/check'><label>Administrator PIN</label><input type='password' name='pin' required><button type='submit'>CHECK FOR UPDATE NOW</button></form>";
   h += "<p>Automatic update check runs after every boot when Internet Wi-Fi is configured.</p></div>";
   h += "<a href='/settings'>Device Settings</a><a href='/'>Dashboard</a></div></body></html>";
   return h;
@@ -217,7 +207,6 @@ void registerRoutes() {
   server.on("/api/ota/check", HTTP_POST, []() {
     if (!adminOK()) { server.send(403, "text/plain", "Invalid admin PIN"); return; }
     server.send(200, "text/plain", "OTA check started. The device will reboot only if a newer release is available.");
-    // Give the HTTP response time to leave before the OTA task takes over.
     delay(100);
     checkForUpdate();
   });
@@ -227,8 +216,6 @@ void otaTask(void *) {
   delay(BOOT_WAIT_MS);
   registerRoutes();
   checkForUpdate();
-
-  // Keep the task alive; the main loop owns the port-80 WebServer request pump.
   for (;;) vTaskDelay(pdMS_TO_TICKS(60000));
 }
 }
@@ -240,9 +227,6 @@ void otaStart() {
   xTaskCreate(otaTask, "ota_task", 8192, nullptr, 1, nullptr);
 }
 
-// Arduino calls global constructors before setup(). Creating the task here is
-// safe because FreeRTOS tasks may be created before the scheduler starts; the
-// task itself waits until the normal Arduino setup has initialized NVS/Wi-Fi.
 struct OtaAutoStart {
   OtaAutoStart() { otaStart(); }
 };
