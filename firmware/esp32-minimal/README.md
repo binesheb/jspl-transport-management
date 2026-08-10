@@ -2,17 +2,11 @@
 
 This firmware is the first real hardware prototype for the Palarivattom showroom exit counter.
 
-It runs **completely on one ESP32**. The ESP32 hosts the web server and can create its own Wi-Fi access point. The counter itself does not depend on a cloud server.
-
-## Circuit diagram
-
-![Palarivattom V1 circuit diagram](../../docs/hardware/circuit-diagram.svg)
-
-Full-size diagram: `docs/hardware/circuit-diagram.svg`
+It runs **completely on one ESP32**. The ESP32 hosts the web server and can create its own Wi-Fi access point, so no cloud server, Raspberry Pi, PC or Internet connection is required for the pilot counter workflow.
 
 ## What this version does
 
-Three hostel/destination buttons:
+Three configurable destination buttons:
 
 - **KAL** = Kaloor
 - **VYT** = Vytilla
@@ -20,19 +14,19 @@ Three hostel/destination buttons:
 
 ### Normal mode
 
-- Short press a hostel button → ready/waiting count **+1**.
-- Hold a hostel button for **10 seconds** → enter release mode for that hostel.
-- The 10-second action has a live OLED progress bar.
+- Short press a destination button → ready/waiting count **+1**.
+- Hold a destination button for the configured long-press duration (default 10 seconds) → enter release mode for that destination.
+- The hold action has a live OLED progress bar.
 
 ### Release mode
 
-The selected hostel button now represents staff physically exiting the showroom.
+The selected destination button now represents staff physically exiting the showroom.
 
 - Short press → **Exited +1**.
 - The waiting count is deliberately frozen while the group is being released.
-- Hold for 10 seconds → confirm the physical exit count.
-- Hold for another 10 seconds → confirm reduction of the waiting queue.
-- The final action performs `waiting = waiting - exited` and returns to normal mode.
+- Hold for the configured long-press duration → confirm the physical exit count.
+- Hold again → confirm reduction of the waiting queue.
+- The final action performs the queue reduction and returns to normal mode.
 
 Example:
 
@@ -51,10 +45,10 @@ The bus controller is **not part of V1**. This device is only a reliable three-c
 
 ## OLED UI
 
-The display is a **128x64 monochrome OLED**. The normal screen uses the display as efficiently as possible:
+The display is a **128x64 monochrome OLED**.
 
 ```text
-PVM-GATE-01                         *
+PVM-GATE-01
 
  KAL          VYT          VAZ
   90           12            8
@@ -62,7 +56,7 @@ PVM-GATE-01                         *
           READY TO BOARD
 ```
 
-During release mode it switches to a focused screen showing waiting and exited counts. During every 10-second hold it shows a filling progress bar and elapsed time.
+During release mode it switches to a focused screen showing waiting and exited counts. During every long hold it shows a filling progress bar and elapsed time.
 
 ## Hardware
 
@@ -97,23 +91,21 @@ Buttons use `INPUT_PULLUP`:
 - One side → GPIO
 - Other side → GND
 
-### Important
-
-The pin map assumes a **classic ESP32 DevKit / ESP32-WROOM style board** and an SPI SSD1306 module. If your ESP32 or OLED uses different pins/interface, change only `src/config.h`.
+The pin map assumes a classic ESP32 DevKit / ESP32-WROOM style board and an SPI SSD1306 module. If the actual board or OLED uses different pins/interface, change only `src/config.h`.
 
 ## Local web server
 
-The ESP32 creates a temporary local Wi-Fi access point:
+The ESP32 creates a local Wi-Fi access point:
 
 - SSID: `JSPL-PVM-GATE`
 - Password: `jsplgate1`
 - Dashboard: `http://192.168.4.1`
 - Settings: `http://192.168.4.1/settings`
-- Network & OTA: `http://192.168.4.1/network`
+- Network / OTA: `http://192.168.4.1/network`
 
 The dashboard is a live monitor of the physical counter. Physical buttons remain the primary operational controls for V1.
 
-## Self-hosted device settings
+## Device settings
 
 The ESP32 has its own configuration page. No computer or external server is required.
 
@@ -128,13 +120,13 @@ The settings page supports:
 
 ### Bus preparation
 
-The bus controller is not active in V1, but the reusable device configuration already supports:
+The bus controller is not active in V1, but reusable device configuration already supports:
 
 - Vehicle registration number
 - Bus capacity
 - Bus enabled/disabled
 
-The final project will use the **vehicle registration number as the bus identifier**.
+The final project will use the **vehicle registration number as the bus identifier**, while the software model keeps destination/route separate from a physical bus assignment.
 
 ### Destinations
 
@@ -160,21 +152,9 @@ The following parameters are stored in the ESP32:
 - Button debounce — default 35 ms
 - OLED message duration — default 1,800 ms
 
-### Network
-
-Open:
-
-```text
-http://192.168.4.1/network
-```
-
-Enter the showroom Internet Wi-Fi credentials. The credentials are stored in ESP32 NVS and are not part of the GitHub source code.
-
-The ESP32 keeps its local access point while also using the configured Wi-Fi as a station, so it can reach GitHub for OTA updates.
-
 ### Security
 
-Settings and OTA actions require the local administrator PIN.
+Settings changes require the local administrator PIN.
 
 Default development PIN:
 
@@ -186,106 +166,70 @@ Default development PIN:
 
 The configuration is stored in ESP32 NVS using `Preferences`, so it survives a normal reboot.
 
-## Automatic OTA updates
+## Network and OTA
 
-The device checks for a newer GitHub Release **after every boot** when Internet Wi-Fi is configured.
+The device can optionally connect to a configured JSPL IoT Wi-Fi network while continuing to host its local access point.
 
-Update flow:
+Configure it from:
+
+```text
+http://192.168.4.1/network
+```
+
+The page supports:
+
+- Wi-Fi SSID
+- Wi-Fi password
+- Administrator authentication
+- Manual OTA check
+
+Credentials are stored locally in ESP32 NVS and are not committed to GitHub.
+
+### Automatic firmware update flow
+
+When Internet Wi-Fi is configured, the firmware checks GitHub Releases after boot:
 
 ```text
 ESP32 boots
    ↓
-Start local counter
+Connect to JSPL IoT
    ↓
-Connect to configured Internet Wi-Fi
+Read latest release version
    ↓
-Check latest GitHub Release
+Compare with installed version
    ↓
-Same version → continue normally
+New version?
    ↓
-New version → download firmware.bin
+Download checksum
    ↓
-Write inactive OTA partition
+Download firmware
    ↓
-Validate firmware
+Calculate SHA-256 while writing OTA partition
    ↓
-Reboot
+Checksum matches?
    ↓
-Run new firmware
+Validate OTA image
+   ↓
+Reboot into new firmware
 ```
 
-The OTA partition table provides two application slots (`ota_0` and `ota_1`) plus the OTA data partition. This is the safe ESP32 OTA architecture: the new image is written to the inactive application slot rather than overwriting the running firmware. See Espressif's OTA documentation for the underlying mechanism. 
+The release pipeline publishes three assets:
 
-The device also exposes **CHECK FOR UPDATE NOW** at `/network`.
+- `firmware.bin`
+- `ota-version.txt`
+- `firmware.sha256`
 
-### GitHub Release format
+GitHub supports direct download URLs for assets attached to the latest release. The device uses those release assets as its update source.
 
-A release is expected to contain:
-
-```text
-firmware.bin
-version.txt
-```
-
-The updater uses the stable GitHub latest-release download paths:
-
-```text
-/releases/latest/download/firmware.bin
-/releases/latest/download/version.txt
-```
-
-### Automated releases
-
-`.github/workflows/esp32-release.yml` builds the PlatformIO firmware and creates the GitHub Release when a tag such as:
-
-```text
-v1.0.1
-```
-
-is pushed.
-
-The workflow publishes the firmware binary and the matching version file. PlatformIO supports GitHub Actions as a CI/build workflow for PlatformIO projects. 
-
-### Important security note
-
-The current prototype uses TLS transport with certificate verification disabled (`setInsecure()`) so we can get the Palarivattom pilot working without embedding certificate material.
-
-**Before production deployment across JSPL showrooms, certificate verification and signed firmware verification should be enabled.**
-
-## Configuration architecture
-
-Hardware-specific values remain in `src/config.h`:
-
-```text
-GPIO pins
-OLED pins
-buzzer pin
-screen dimensions
-```
-
-Operational/device values are stored in NVS and can be changed from the device web interface:
-
-```text
-Device name
-Showroom
-Installation
-Bus registration
-Bus capacity
-Destinations
-Long-press duration
-Debounce
-Message duration
-Wi-Fi credentials
-Admin PIN
-```
-
-This allows the same firmware to be deployed at different JSPL showrooms without creating a separate firmware build for each location.
+**Current security status:** HTTPS is used for the prototype, but certificate verification is intentionally not yet enabled. SHA-256 protects against corrupted or incomplete firmware installation; it is **not a substitute for authenticated firmware signing**. Before production rollout, add certificate verification and cryptographic firmware signing.
 
 ## Persistent counter storage
 
 Counts are stored using ESP32 `Preferences` (NVS), so waiting counts survive a normal reboot/power cycle.
 
 Factory reset from the settings page resets **configuration only**. It does not silently erase the staff counters.
+
+For the production architecture, confirmed transport events should additionally have unique IDs, timestamps, device IDs and durable event records so they can synchronize safely after an offline period.
 
 ## Build
 
@@ -296,25 +240,56 @@ Then:
 1. Open Serial Monitor at 115200 baud.
 2. Connect a phone to `JSPL-PVM-GATE`.
 3. Open `http://192.168.4.1`.
-4. Open `/settings` to configure the device.
-5. Open `/network` and enter the Internet Wi-Fi credentials.
-6. Change the administrator PIN.
-7. Test the three physical buttons.
+4. Open `/settings` and change the development PIN.
+5. Open `/network` and configure JSPL IoT only if OTA testing is required.
+6. Test the three physical buttons.
+7. Power-cycle the ESP32 and verify the counts remain intact.
+
+## Release process
+
+Firmware releases are created from semantic version tags:
+
+```text
+v1.0.1
+v1.0.2
+v1.1.0
+```
+
+GitHub Actions builds the PlatformIO firmware and publishes the release assets automatically.
+
+Do **not** create a production release until the physical Palarivattom pilot has passed the hardware and workflow checklist.
 
 ## Current scope
 
 This version intentionally does **not** include:
 
 - Bus controllers
-- Bus capacity enforcement
+- Bus capacity enforcement at the gate
 - Physical bus boarding counters
 - Multi-trip management
-- Cloud synchronization
-- JSPL IoT integration as a transport application layer
+- Cloud synchronization of transport events
+- JSPL IoT application integration
+- Authenticated/signed OTA firmware
+- Staff identity/RFID tracking
 
-The device can use the showroom Internet Wi-Fi only for OTA in this stage. Transport logic remains local to the ESP32.
+These will be added after the physical counter workflow is proven at Palarivattom.
 
-## References
+## Pilot gate before custom PCB
 
-- Espressif OTA architecture: https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/ota.html
-- PlatformIO GitHub Actions: https://docs.platformio.org/en/stable/integration/ci/github-actions.html
+Validate physically before freezing reusable hardware:
+
+- destination button reliability
+- duplicate-press behaviour
+- queue accuracy
+- gatekeeper release workflow
+- bus readiness state
+- capacity protection
+- released-versus-boarded reconciliation
+- departure workflow
+- Wi-Fi reconnect
+- Internet loss and recovery
+- power-cycle recovery
+- cloud synchronization after offline operation
+- display readability
+- button ergonomics
+- enclosure and power reliability
