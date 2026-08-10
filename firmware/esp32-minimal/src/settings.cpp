@@ -24,6 +24,11 @@ void setDefaults() {
   gConfig.longPressMs = 10000;
   gConfig.debounceMs = 35;
   gConfig.messageMs = 1800;
+
+  // Blank by default. Configure JSPL IoT from the device's Network/OTA page.
+  gConfig.wifiSsid = "";
+  gConfig.wifiPassword = "";
+
   gConfig.adminPin = "1234";
 }
 
@@ -62,6 +67,8 @@ void settingsLoad() {
   gConfig.longPressMs = gPrefs->getUInt("long_ms", gConfig.longPressMs);
   gConfig.debounceMs = gPrefs->getUInt("debounce", gConfig.debounceMs);
   gConfig.messageMs = gPrefs->getUInt("message_ms", gConfig.messageMs);
+  loadString("wifi_ssid", gConfig.wifiSsid, gConfig.wifiSsid);
+  loadString("wifi_pass", gConfig.wifiPassword, gConfig.wifiPassword);
   loadString("admin_pin", gConfig.adminPin, gConfig.adminPin);
 }
 
@@ -87,6 +94,8 @@ bool settingsSave(const DeviceConfig &incoming) {
   gPrefs->putUInt("long_ms", gConfig.longPressMs);
   gPrefs->putUInt("debounce", gConfig.debounceMs);
   gPrefs->putUInt("message_ms", gConfig.messageMs);
+  gPrefs->putString("wifi_ssid", gConfig.wifiSsid);
+  gPrefs->putString("wifi_pass", gConfig.wifiPassword);
   gPrefs->putString("admin_pin", gConfig.adminPin);
   return true;
 }
