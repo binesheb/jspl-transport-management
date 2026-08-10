@@ -20,6 +20,10 @@ struct DeviceConfig {
   uint32_t debounceMs;
   uint32_t messageMs;
 
+  // Network credentials are stored locally in NVS and never committed to GitHub.
+  String wifiSsid;
+  String wifiPassword;
+
   String adminPin;
 };
 
