@@ -7,15 +7,13 @@
 #include <Adafruit_SSD1306.h>
 
 // Minimal standalone transport counter.
-// This version deliberately has no cloud dependency.
-// It can run on an ESP32 with an SSD1306 128x64 OLED and four push buttons.
+// No cloud, database, MQTT or Internet is required in this prototype.
 
 constexpr uint8_t OLED_SDA = 21;
 constexpr uint8_t OLED_SCL = 22;
 constexpr uint8_t OLED_ADDR = 0x3C;
 constexpr uint8_t SCREEN_WIDTH = 128;
 constexpr uint8_t SCREEN_HEIGHT = 64;
-
 constexpr uint8_t BTN_EXPECTED = 25;
 constexpr uint8_t BTN_BOARDED = 26;
 constexpr uint8_t BTN_EXITED = 27;
@@ -29,7 +27,6 @@ uint32_t expectedCount = 0;
 uint32_t boardedCount = 0;
 uint32_t exitedCount = 0;
 String busId = "KL-01-AB-1001";
-
 const char *AP_PASSWORD = "jsplbus1";
 
 struct ButtonState {
@@ -38,9 +35,7 @@ struct ButtonState {
   bool stableState = HIGH;
   uint32_t changedAt = 0;
 };
-
-ButtonState buttons[] = {
-    {BTN_EXPECTED}, {BTN_BOARDED}, {BTN_EXITED}, {BTN_RESET}};
+ButtonState buttons[] = {{BTN_EXPECTED}, {BTN_BOARDED}, {BTN_EXITED}, {BTN_RESET}};
 
 void saveState() {
   prefs.putUInt("expected", expectedCount);
@@ -63,10 +58,6 @@ void resetTrip() {
   saveState();
 }
 
-bool readyToDepart() {
-  return expectedCount > 0 && boardedCount == expectedCount;
-}
-
 String statusText() {
   if (expectedCount == 0) return "WAITING";
   if (boardedCount < expectedCount) return "BOARDING";
@@ -79,28 +70,21 @@ void drawDisplay() {
   display.setTextSize(1);
   display.setCursor(0, 0);
   display.print("JSPL TRANSPORT");
-
   display.setCursor(0, 10);
   display.print(busId);
-
   display.setCursor(0, 22);
   display.print("EXPECTED  ");
   display.print(expectedCount);
-
   display.setCursor(0, 32);
   display.print("BOARDED   ");
   display.print(boardedCount);
-
   display.setCursor(0, 42);
   display.print("REMAINING ");
   display.print(expectedCount > boardedCount ? expectedCount - boardedCount : 0);
-
   display.setCursor(0, 54);
   display.print(statusText());
-  if (exitedCount > 0) {
-    display.print("  EXIT ");
-    display.print(exitedCount);
-  }
+  display.print(" EXIT ");
+  display.print(exitedCount);
   display.display();
 }
 
@@ -113,58 +97,21 @@ void sendJson() {
 }
 
 String htmlPage() {
-  String html = R"HTML(
-<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>JSPL Transport</title>
-<style>
-body{font-family:system-ui;margin:0;padding:20px;background:#111827;color:#fff;text-align:center}
-.card{max-width:420px;margin:auto;background:#1f2937;border-radius:18px;padding:24px}
-h1{font-size:22px}.count{font-size:42px;font-weight:700}.row{display:flex;justify-content:space-between;margin:14px 0}
-button{font-size:18px;padding:14px 20px;margin:6px;border:0;border-radius:10px} .reset{background:#991b1b;color:white}
-</style></head><body><div class="card">
-<h1>JSPL TRANSPORT</h1><div id="bus"></div><div id="status"></div>
-<div class="row"><span>Expected</span><strong id="expected">-</strong></div>
-<div class="row"><span>Boarded</span><strong id="boarded">-</strong></div>
-<div class="row"><span>Remaining</span><strong id="remaining">-</strong></div>
-<div class="row"><span>Exited</span><strong id="exited">-</strong></div>
-<button onclick="act('expected')">STAFF LEFT +1</button>
-<button onclick="act('boarded')">BOARD +1</button>
-<button onclick="act('exited')">EXIT BUS +1</button><br>
-<button class="reset" onclick="act('reset')">RESET TRIP</button>
-</div><script>
-async function refresh(){const r=await fetch('/api/state');const d=await r.json();
- document.getElementById('bus').textContent=d.bus_id;document.getElementById('status').textContent=d.status;
- for(const k of ['expected','boarded','remaining','exited'])document.getElementById(k).textContent=d[k];}
-async function act(a){await fetch('/api/'+a,{method:'POST'});refresh()}setInterval(refresh,1000);refresh();
-</script></body></html>
-)HTML";
-  return html;
+  return R"HTML(<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>JSPL Transport</title><style>
+body{font-family:system-ui;margin:0;padding:20px;background:#111827;color:#fff;text-align:center}.card{max-width:420px;margin:auto;background:#1f2937;border-radius:18px;padding:24px}h1{font-size:22px}.row{display:flex;justify-content:space-between;margin:14px 0}button{font-size:18px;padding:14px 20px;margin:6px;border:0;border-radius:10px}.reset{background:#991b1b;color:white}
+</style></head><body><div class="card"><h1>JSPL TRANSPORT</h1><div id="bus"></div><h2 id="status"></h2>
+<div class="row"><span>Expected</span><strong id="expected">-</strong></div><div class="row"><span>Boarded</span><strong id="boarded">-</strong></div><div class="row"><span>Remaining</span><strong id="remaining">-</strong></div><div class="row"><span>Exited</span><strong id="exited">-</strong></div>
+<button onclick="act('expected')">STAFF LEFT +1</button><button onclick="act('boarded')">BOARD +1</button><button onclick="act('exited')">EXIT BUS +1</button><br><button class="reset" onclick="act('reset')">RESET TRIP</button></div>
+<script>async function refresh(){const r=await fetch('/api/state');const d=await r.json();document.getElementById('bus').textContent=d.bus_id;document.getElementById('status').textContent=d.status;for(const k of ['expected','boarded','remaining','exited'])document.getElementById(k).textContent=d[k]}async function act(a){await fetch('/api/'+a,{method:'POST'});refresh()}setInterval(refresh,1000);refresh();</script>
+</body></html>)HTML";
 }
 
 void handleState() { sendJson(); }
-void handleExpected() {
-  expectedCount++;
-  saveState();
-  drawDisplay();
-  sendJson();
-}
-void handleBoarded() {
-  if (boardedCount < expectedCount) boardedCount++;
-  saveState();
-  drawDisplay();
-  sendJson();
-}
-void handleExited() {
-  if (exitedCount < boardedCount) exitedCount++;
-  saveState();
-  drawDisplay();
-  sendJson();
-}
-void handleReset() {
-  resetTrip();
-  drawDisplay();
-  sendJson();
-}
+void handleExpected() { expectedCount++; saveState(); drawDisplay(); sendJson(); }
+void handleBoarded() { if (boardedCount < expectedCount) boardedCount++; saveState(); drawDisplay(); sendJson(); }
+void handleExited() { if (exitedCount < boardedCount) exitedCount++; saveState(); drawDisplay(); sendJson(); }
+void handleReset() { resetTrip(); drawDisplay(); sendJson(); }
 
 void setupWebServer() {
   server.on("/", HTTP_GET, []() { server.send(200, "text/html", htmlPage()); });
@@ -190,28 +137,18 @@ void setup() {
   Serial.begin(115200);
   prefs.begin("transport", false);
   loadState();
-
   for (auto &button : buttons) pinMode(button.pin, INPUT_PULLUP);
-
   Wire.begin(OLED_SDA, OLED_SCL);
   if (display.begin(SSD1306_SWITCHCAPVCC, OLED_ADDR)) {
-    display.clearDisplay();
-    display.setTextColor(SSD1306_WHITE);
-    display.setTextSize(1);
-    display.setCursor(0, 0);
-    display.println("JSPL TRANSPORT");
-    display.println("Starting...");
-    display.display();
+    display.clearDisplay(); display.setTextColor(SSD1306_WHITE); display.setTextSize(1);
+    display.setCursor(0, 0); display.println("JSPL TRANSPORT"); display.println("Starting..."); display.display();
   }
-
-  String apName = "JSPL-BUS-" + busId.substring(busId.length() > 4 ? busId.length() - 4 : 0);
+  String suffix = busId.substring(busId.length() > 4 ? busId.length() - 4 : 0);
+  String apName = "JSPL-BUS-" + suffix;
   WiFi.mode(WIFI_AP);
   WiFi.softAP(apName.c_str(), AP_PASSWORD);
-  Serial.print("Connect to Wi-Fi: ");
-  Serial.println(apName);
-  Serial.print("Open: http://");
-  Serial.println(WiFi.softAPIP());
-
+  Serial.print("Connect to Wi-Fi: "); Serial.println(apName);
+  Serial.print("Open: http://"); Serial.println(WiFi.softAPIP());
   setupWebServer();
   drawDisplay();
 }
