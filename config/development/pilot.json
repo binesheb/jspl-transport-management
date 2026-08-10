@@ -1,0 +1,24 @@
+{
+  "environment": "development",
+  "showroom": {
+    "code": "PVM",
+    "name": "Palarivattom"
+  },
+  "wifi": {
+    "ssid": "JSPL IoT"
+  },
+  "buses": [
+    {
+      "registration_number": "KL-01-AB-1001",
+      "capacity": 40
+    },
+    {
+      "registration_number": "KL-01-AB-1002",
+      "capacity": 40
+    },
+    {
+      "registration_number": "KL-01-AB-1003",
+      "capacity": 40
+    }
+  ]
+}
