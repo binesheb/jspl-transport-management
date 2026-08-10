@@ -4,15 +4,19 @@
 #include <HTTPClient.h>
 #include <WiFiClientSecure.h>
 #include <Update.h>
+#include <mbedtls/sha256.h>
 #include "settings.h"
 #include "version.h"
 #include "ota.h"
 
+// The counter application owns the port-80 WebServer. This module adds OTA
+// routes and a background release checker without changing the counter UI.
 extern WebServer server;
 
 namespace {
-constexpr char VERSION_URL[] = "https://github.com/binesheb/jspl-transport-management/releases/latest/download/version.txt";
+constexpr char VERSION_URL[] = "https://github.com/binesheb/jspl-transport-management/releases/latest/download/ota-version.txt";
 constexpr char FIRMWARE_URL[] = "https://github.com/binesheb/jspl-transport-management/releases/latest/download/firmware.bin";
+constexpr char CHECKSUM_URL[] = "https://github.com/binesheb/jspl-transport-management/releases/latest/download/firmware.sha256";
 constexpr uint32_t WIFI_CONNECT_TIMEOUT_MS = 8000;
 constexpr uint32_t BOOT_WAIT_MS = 3500;
 constexpr uint32_t OTA_HTTP_TIMEOUT_MS = 15000;
@@ -64,12 +68,17 @@ bool connectInternet() {
 
 String fetchText(const char *url) {
   WiFiClientSecure client;
-  client.setInsecure(); // Prototype only; production will use certificate verification.
+  // Prototype transport: HTTPS is used, but CA verification will be hardened
+  // before production rollout. The firmware checksum below still prevents a
+  // corrupted/incomplete binary from being installed.
+  client.setInsecure();
+
   HTTPClient http;
   http.setConnectTimeout(OTA_HTTP_TIMEOUT_MS);
   http.setTimeout(OTA_HTTP_TIMEOUT_MS);
   http.setFollowRedirects(HTTPC_STRICT_FOLLOW_REDIRECTS);
   if (!http.begin(client, url)) return String();
+
   int code = http.GET();
   String body;
   if (code == HTTP_CODE_OK) body = http.getString();
@@ -78,9 +87,32 @@ String fetchText(const char *url) {
   return body;
 }
 
-bool performUpdate(const String &remoteVersion) {
+String checksumToken(String value) {
+  value.trim();
+  int space = value.indexOf(' ');
+  if (space > 0) value = value.substring(0, space);
+  int tab = value.indexOf('\t');
+  if (tab > 0) value = value.substring(0, tab);
+  value.trim();
+  value.toLowerCase();
+  return value;
+}
+
+String bytesToHex(const uint8_t *bytes, size_t length) {
+  const char hex[] = "0123456789abcdef";
+  String result;
+  result.reserve(length * 2);
+  for (size_t i = 0; i < length; ++i) {
+    result += hex[(bytes[i] >> 4) & 0x0F];
+    result += hex[bytes[i] & 0x0F];
+  }
+  return result;
+}
+
+bool performUpdate(const String &remoteVersion, const String &expectedChecksum) {
   WiFiClientSecure client;
-  client.setInsecure(); // Prototype only; production will use certificate verification.
+  client.setInsecure();
+
   HTTPClient http;
   http.setConnectTimeout(OTA_HTTP_TIMEOUT_MS);
   http.setTimeout(OTA_HTTP_TIMEOUT_MS);
@@ -107,6 +139,16 @@ bool performUpdate(const String &remoteVersion) {
     return false;
   }
 
+  mbedtls_sha256_context sha;
+  mbedtls_sha256_init(&sha);
+  if (mbedtls_sha256_starts_ret(&sha, 0) != 0) {
+    Serial.println("[OTA] SHA-256 initialization failed.");
+    mbedtls_sha256_free(&sha);
+    Update.abort();
+    http.end();
+    return false;
+  }
+
   Serial.printf("[OTA] Installing %s (%d bytes)\n", remoteVersion.c_str(), total);
   WiFiClient *stream = http.getStreamPtr();
   uint8_t buffer[2048];
@@ -118,9 +160,18 @@ bool performUpdate(const String &remoteVersion) {
       size_t toRead = min(available, sizeof(buffer));
       int readNow = stream->readBytes(buffer, toRead);
       if (readNow > 0) {
+        if (mbedtls_sha256_update_ret(&sha, buffer, readNow) != 0) {
+          Serial.println("[OTA] SHA-256 update failed.");
+          mbedtls_sha256_free(&sha);
+          Update.abort();
+          http.end();
+          return false;
+        }
+
         size_t result = Update.write(buffer, readNow);
         if (result != (size_t)readNow) {
           Serial.printf("[OTA] Flash write failed: %s\n", Update.errorString());
+          mbedtls_sha256_free(&sha);
           Update.abort();
           http.end();
           return false;
@@ -133,7 +184,27 @@ bool performUpdate(const String &remoteVersion) {
   }
 
   http.end();
-  if (written != (size_t)total || !Update.end(true)) {
+
+  uint8_t digest[32];
+  bool hashOK = written == (size_t)total && mbedtls_sha256_finish_ret(&sha, digest) == 0;
+  mbedtls_sha256_free(&sha);
+
+  if (!hashOK) {
+    Serial.println("[OTA] Firmware hash calculation failed.");
+    Update.abort();
+    return false;
+  }
+
+  String actualChecksum = bytesToHex(digest, sizeof(digest));
+  if (expectedChecksum.length() != 64 || actualChecksum != expectedChecksum) {
+    Serial.println("[OTA] Firmware SHA-256 mismatch; refusing update.");
+    Serial.print("[OTA] Expected: "); Serial.println(expectedChecksum);
+    Serial.print("[OTA] Actual:   "); Serial.println(actualChecksum);
+    Update.abort();
+    return false;
+  }
+
+  if (!Update.end(true)) {
     Serial.printf("[OTA] Update validation failed: %s\n", Update.errorString());
     return false;
   }
@@ -146,21 +217,29 @@ bool performUpdate(const String &remoteVersion) {
 
 void checkForUpdate() {
   if (!connectInternet()) return;
+
   Serial.printf("[OTA] Current firmware: %s\n", JSPL_FW_VERSION);
   Serial.println("[OTA] Checking latest GitHub release...");
 
-  String remoteVersion = fetchText(VERSION_URL);
+  String remoteVersion = checksumToken(fetchText(VERSION_URL));
   if (remoteVersion.isEmpty()) {
     Serial.println("[OTA] No release version found; continuing normally.");
     return;
   }
+
   if (!versionNewer(remoteVersion, JSPL_FW_VERSION)) {
     Serial.printf("[OTA] Firmware is current (%s).\n", JSPL_FW_VERSION);
     return;
   }
 
+  String expectedChecksum = checksumToken(fetchText(CHECKSUM_URL));
+  if (expectedChecksum.length() != 64) {
+    Serial.println("[OTA] Invalid release checksum; refusing update.");
+    return;
+  }
+
   Serial.printf("[OTA] New release available: %s\n", remoteVersion.c_str());
-  performUpdate(remoteVersion);
+  performUpdate(remoteVersion, expectedChecksum);
 }
 
 String networkPage(const String &notice = "") {
