@@ -2,7 +2,7 @@
 
 This firmware is the first real hardware prototype for the Palarivattom showroom exit counter.
 
-It runs **completely on one ESP32**. The ESP32 hosts the web server and can also create its own Wi-Fi access point, so no cloud server, Raspberry Pi, PC or Internet connection is required for the pilot.
+It runs **completely on one ESP32**. The ESP32 hosts the web server and can create its own Wi-Fi access point. The counter itself does not depend on a cloud server.
 
 ## Circuit diagram
 
@@ -109,18 +109,13 @@ The ESP32 creates a temporary local Wi-Fi access point:
 - Password: `jsplgate1`
 - Dashboard: `http://192.168.4.1`
 - Settings: `http://192.168.4.1/settings`
+- Network & OTA: `http://192.168.4.1/network`
 
 The dashboard is a live monitor of the physical counter. Physical buttons remain the primary operational controls for V1.
 
 ## Self-hosted device settings
 
 The ESP32 has its own configuration page. No computer or external server is required.
-
-Open:
-
-```text
-http://192.168.4.1/settings
-```
 
 The settings page supports:
 
@@ -165,9 +160,21 @@ The following parameters are stored in the ESP32:
 - Button debounce — default 35 ms
 - OLED message duration — default 1,800 ms
 
+### Network
+
+Open:
+
+```text
+http://192.168.4.1/network
+```
+
+Enter the showroom Internet Wi-Fi credentials. The credentials are stored in ESP32 NVS and are not part of the GitHub source code.
+
+The ESP32 keeps its local access point while also using the configured Wi-Fi as a station, so it can reach GitHub for OTA updates.
+
 ### Security
 
-Settings changes require the local administrator PIN.
+Settings and OTA actions require the local administrator PIN.
 
 Default development PIN:
 
@@ -178,6 +185,72 @@ Default development PIN:
 **Change this before operational deployment.**
 
 The configuration is stored in ESP32 NVS using `Preferences`, so it survives a normal reboot.
+
+## Automatic OTA updates
+
+The device checks for a newer GitHub Release **after every boot** when Internet Wi-Fi is configured.
+
+Update flow:
+
+```text
+ESP32 boots
+   ↓
+Start local counter
+   ↓
+Connect to configured Internet Wi-Fi
+   ↓
+Check latest GitHub Release
+   ↓
+Same version → continue normally
+   ↓
+New version → download firmware.bin
+   ↓
+Write inactive OTA partition
+   ↓
+Validate firmware
+   ↓
+Reboot
+   ↓
+Run new firmware
+```
+
+The OTA partition table provides two application slots (`ota_0` and `ota_1`) plus the OTA data partition. This is the safe ESP32 OTA architecture: the new image is written to the inactive application slot rather than overwriting the running firmware. See Espressif's OTA documentation for the underlying mechanism. 
+
+The device also exposes **CHECK FOR UPDATE NOW** at `/network`.
+
+### GitHub Release format
+
+A release is expected to contain:
+
+```text
+firmware.bin
+version.txt
+```
+
+The updater uses the stable GitHub latest-release download paths:
+
+```text
+/releases/latest/download/firmware.bin
+/releases/latest/download/version.txt
+```
+
+### Automated releases
+
+`.github/workflows/esp32-release.yml` builds the PlatformIO firmware and creates the GitHub Release when a tag such as:
+
+```text
+v1.0.1
+```
+
+is pushed.
+
+The workflow publishes the firmware binary and the matching version file. PlatformIO supports GitHub Actions as a CI/build workflow for PlatformIO projects. 
+
+### Important security note
+
+The current prototype uses TLS transport with certificate verification disabled (`setInsecure()`) so we can get the Palarivattom pilot working without embedding certificate material.
+
+**Before production deployment across JSPL showrooms, certificate verification and signed firmware verification should be enabled.**
 
 ## Configuration architecture
 
@@ -190,7 +263,7 @@ buzzer pin
 screen dimensions
 ```
 
-Operational/device values are stored in NVS and can be changed from `/settings`:
+Operational/device values are stored in NVS and can be changed from the device web interface:
 
 ```text
 Device name
@@ -202,6 +275,7 @@ Destinations
 Long-press duration
 Debounce
 Message duration
+Wi-Fi credentials
 Admin PIN
 ```
 
@@ -223,7 +297,9 @@ Then:
 2. Connect a phone to `JSPL-PVM-GATE`.
 3. Open `http://192.168.4.1`.
 4. Open `/settings` to configure the device.
-5. Test the three physical buttons.
+5. Open `/network` and enter the Internet Wi-Fi credentials.
+6. Change the administrator PIN.
+7. Test the three physical buttons.
 
 ## Current scope
 
@@ -234,7 +310,11 @@ This version intentionally does **not** include:
 - Physical bus boarding counters
 - Multi-trip management
 - Cloud synchronization
-- JSPL IoT integration
-- OTA update service
+- JSPL IoT integration as a transport application layer
 
-These will be added after the physical counter workflow is proven at Palarivattom.
+The device can use the showroom Internet Wi-Fi only for OTA in this stage. Transport logic remains local to the ESP32.
+
+## References
+
+- Espressif OTA architecture: https://docs.espressif.com/projects/esp-idf/en/stable/esp32/api-reference/system/ota.html
+- PlatformIO GitHub Actions: https://docs.platformio.org/en/stable/integration/ci/github-actions.html
