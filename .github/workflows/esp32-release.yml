@@ -1,0 +1,65 @@
+name: ESP32 Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: firmware/esp32-minimal
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set release version
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          export VERSION
+          python - <<'PY'
+          import os
+          import re
+          from pathlib import Path
+
+          version = os.environ["VERSION"]
+          path = Path("src/version.h")
+          text = path.read_text()
+          text, count = re.subn(
+              r'#define JSPL_FW_VERSION\s+"[^"]+"',
+              f'#define JSPL_FW_VERSION "{version}"',
+              text,
+              count=1,
+          )
+          if count != 1:
+              raise SystemExit("JSPL_FW_VERSION definition not found")
+          path.write_text(text)
+          PY
+          echo "$VERSION" > ota-version.txt
+
+      - name: Install PlatformIO
+        run: pip install --upgrade platformio
+
+      - name: Build firmware
+        run: pio run
+
+      - name: Generate firmware checksum
+        run: sha256sum .pio/build/esp32dev/firmware.bin | awk '{print $1}' > firmware.sha256
+
+      - name: Publish GitHub Release
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            "firmware/esp32-minimal/.pio/build/esp32dev/firmware.bin" \
+            "firmware/esp32-minimal/ota-version.txt" \
+            "firmware/esp32-minimal/firmware.sha256" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes
