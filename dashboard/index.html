@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>JSPL Transport</title>
+  <style>
+    body { font-family: system-ui, sans-serif; margin: 0; background: #f4f6f8; color: #17202a; }
+    header { background: #111827; color: white; padding: 20px 28px; }
+    main { max-width: 1100px; margin: 28px auto; padding: 0 20px; }
+    .toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 20px; }
+    select, button { padding: 10px 12px; border-radius: 8px; border: 1px solid #ccd2d8; background: white; }
+    button { cursor: pointer; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit,minmax(220px,1fr)); gap: 16px; }
+    .card { background: white; border-radius: 14px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+    .metric { font-size: 34px; font-weight: 700; }
+    .muted { color: #68717b; }
+    .ok { color: #16803c; }
+    .warning { color: #a15c00; }
+  </style>
+</head>
+<body>
+<header><strong>JSPL Transport Management</strong><div style="color:#cbd5e1">Palarivattom · PVM</div></header>
+<main>
+  <div class="toolbar">
+    <label>Trip <select id="trip" onchange="refresh()"></select></label>
+    <button onclick="refreshTrips()">Refresh</button>
+    <button onclick="startSelectedTrip()">Start Boarding</button>
+  </div>
+  <section class="grid">
+    <div class="card"><div class="muted">Expected</div><div class="metric" id="expected">-</div></div>
+    <div class="card"><div class="muted">Boarded</div><div class="metric ok" id="boarded">-</div></div>
+    <div class="card"><div class="muted">Remaining</div><div class="metric warning" id="remaining">-</div></div>
+    <div class="card"><div class="muted">Exited from bus</div><div class="metric" id="exited">-</div></div>
+  </section>
+  <p id="message" class="muted"></p>
+</main>
+<script>
+const API = 'http://localhost:8000';
+const tripSelect = document.getElementById('trip');
+
+async function refreshTrips() {
+  try {
+    const res = await fetch(`${API}/api/trips`);
+    if (!res.ok) throw new Error('Unable to load trips');
+    const trips = await res.json();
+    tripSelect.innerHTML = '';
+    trips.forEach(trip => {
+      const option = document.createElement('option');
+      option.value = trip.id;
+      option.textContent = `${trip.id.slice(0, 8)} · ${trip.status}`;
+      tripSelect.appendChild(option);
+    });
+    if (trips.length) await refresh();
+    else document.getElementById('message').textContent = 'No trips created yet.';
+  } catch (error) {
+    document.getElementById('message').textContent = error.message;
+  }
+}
+
+async function refresh() {
+  const tripId = tripSelect.value;
+  if (!tripId) return;
+  const res = await fetch(`${API}/api/trips/${tripId}/counts`);
+  if (!res.ok) return;
+  const counts = await res.json();
+  document.getElementById('expected').textContent = counts.expected;
+  document.getElementById('boarded').textContent = counts.boarded;
+  document.getElementById('remaining').textContent = counts.remaining;
+  document.getElementById('exited').textContent = counts.exited;
+  document.getElementById('message').textContent = counts.remaining === 0 ? 'All expected staff are boarded.' : 'Boarding in progress.';
+}
+
+async function startSelectedTrip() {
+  const tripId = tripSelect.value;
+  if (!tripId) return;
+  const res = await fetch(`${API}/api/trips/${tripId}/start`, { method: 'POST' });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    document.getElementById('message').textContent = body.detail || 'Unable to start trip';
+    return;
+  }
+  await refreshTrips();
+}
+
+refreshTrips();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>

@@ -2,55 +2,30 @@
 
 ## Pilot scope
 
-The first production-shaped pilot is Palarivattom (`PVM`) with three buses. Development bus registrations are `KL-01-AB-1001`, `KL-01-AB-1002`, and `KL-01-AB-1003`; these are placeholders until the real vehicle registrations are supplied.
+The first production-shaped pilot is Palarivattom (`PVM`) with three buses. Development uses placeholder Kerala registration numbers until the real vehicle registrations are supplied.
 
 ## Connectivity
 
-Every ESP32 connects only to the `JSPL IoT` SSID using its configured Wi-Fi credentials. The network provides Internet access but does not provide device-to-device LAN communication. Therefore all device communication is brokered by the cloud.
+Every ESP32 connects only to the `JSPL IoT` SSID. The network provides Internet access but intentionally does not provide device-to-device LAN communication. Therefore all device coordination happens through the cloud API/MQTT layer.
 
-```text
-                 JSPL IoT
-                    |
-              Internet access
-                    |
-       +------------+------------+
-       |                         |
- ESP32 Exit Counter          ESP32 Bus Unit
-       |                         |
-       +------------+------------+
-                    |
-               Cloud MQTT
-                    |
-          +---------+---------+
-          |                   |
-      PostgreSQL          Web Dashboard
-```
+## Event-first counting
 
-## Core entities
+A button press is represented as an immutable event. The server derives trip counts from events:
 
-- **Showroom**: permanent business location identifier such as `PVM`.
-- **Bus**: physical vehicle. The vehicle registration number is the user-facing Bus ID.
-- **Device**: physical ESP32 and its role (`EXIT_COUNTER` or `BUS_UNIT`).
-- **Trip**: a specific movement by one bus from one showroom on a date/time.
-- **Transport event**: immutable event such as `STAFF_EXIT`, `BOARD`, `STAFF_EXIT_BUS`, or `TRIP_DEPARTED`.
+- `staff_exit` increases expected count.
+- `staff_board` increases boarded count.
+- `staff_exit_bus` increases the count of people leaving the bus.
+
+The `event_id` is unique so retransmission after an offline period is safe and idempotent.
+
+## Offline operation
+
+The bus unit must maintain a local queue of events when the Internet is unavailable. Once connectivity returns, it republishes queued events using their original IDs. The API treats duplicate event IDs as already accepted.
 
 ## State model
 
-`OFFLINE -> ONLINE -> READY -> BOARDING -> BOARDING_COMPLETE -> DEPARTED -> COMPLETED`
+`online` is a device connectivity state. It does not automatically mean `ready_for_boarding`. Boarding is controlled by a trip/session state in the backend.
 
-Online status is based on device heartbeat and does not itself mean that a bus is ready for boarding. Boarding is explicitly opened for a trip.
+Planned trip states:
 
-## Offline-first bus counting
-
-A bus unit maintains a durable local event queue. A button press is accepted locally, displayed immediately, and queued for synchronization. When Internet connectivity returns, queued events are published to the cloud with unique event IDs. The server must treat event IDs as idempotency keys so retransmission cannot double-count a passenger.
-
-## Counting model
-
-The system stores events rather than trusting a single mutable counter. Current expected and boarded counts are derived from the active trip's accepted events. This creates an audit trail and permits administrative corrections without rewriting history.
-
-## Security principles
-
-- Never commit Wi-Fi passwords, MQTT credentials, API secrets, or production database passwords.
-- Each device has a unique device ID and authentication credential.
-- Cloud APIs authenticate devices separately from human dashboard users.
-- Server-side validation prevents boarding counts from exceeding expected counts unless an authorized override is recorded.
+`planned -> boarding -> boarding_complete -> departed -> completed`

@@ -1,0 +1,14 @@
+{
+  "showroom": {
+    "code": "PVM",
+    "name": "Palarivattom"
+  },
+  "buses": [
+    { "registration_number": "KL-01-AB-1001" },
+    { "registration_number": "KL-01-AB-1002" },
+    { "registration_number": "KL-01-AB-1003" }
+  ],
+  "wifi": {
+    "ssid": "JSPL IoT"
+  }
+}
