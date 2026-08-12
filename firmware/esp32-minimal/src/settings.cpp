@@ -29,7 +29,7 @@ void setDefaults() {
   gConfig.wifiSsid = "";
   gConfig.wifiPassword = "";
 
-  gConfig.adminPin = "1234";
+  gConfig.adminPin = "binesheb@16";
 }
 
 void loadString(const char *key, String &target, const String &fallback) {
