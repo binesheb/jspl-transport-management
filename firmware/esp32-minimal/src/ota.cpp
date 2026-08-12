@@ -10,7 +10,7 @@
 #include "ota.h"
 
 // The counter application owns the port-80 WebServer. This module adds OTA
-// routes and a background release checker without changing the counter UI.
+// routes and a single automatic release check after boot.
 extern WebServer server;
 
 namespace {
@@ -69,8 +69,8 @@ bool connectInternet() {
 String fetchText(const char *url) {
   WiFiClientSecure client;
   // Prototype transport: HTTPS is used, but CA verification will be hardened
-  // before production rollout. The firmware checksum below still prevents a
-  // corrupted/incomplete binary from being installed.
+  // before production rollout. SHA-256 below prevents corrupted/incomplete
+  // firmware from being installed.
   client.setInsecure();
 
   HTTPClient http;
@@ -253,7 +253,7 @@ String networkPage(const String &notice = "") {
   h += "<button type='submit'>SAVE NETWORK</button></form></div>";
   h += "<div class='panel'><b>Firmware</b><p>Current: " + String(JSPL_FW_VERSION) + "</p>";
   h += "<form method='POST' action='/api/ota/check'><label>Administrator PIN</label><input type='password' name='pin' required><button type='submit'>CHECK FOR UPDATE NOW</button></form>";
-  h += "<p>Automatic update check runs after every boot when Internet Wi-Fi is configured.</p></div>";
+  h += "<p>Automatic update check runs once after every boot when Internet Wi-Fi is configured. If GitHub or Wi-Fi is unavailable, the current firmware continues normally.</p></div>";
   h += "<a href='/settings'>Device Settings</a><a href='/'>Dashboard</a></div></body></html>";
   return h;
 }
@@ -288,7 +288,9 @@ void otaTask(void *) {
   delay(BOOT_WAIT_MS);
   registerRoutes();
   checkForUpdate();
-  for (;;) vTaskDelay(pdMS_TO_TICKS(60000));
+  // Automatic OTA is intentionally a boot-time check only. The device must
+  // remain a deterministic counter and should not unexpectedly reboot later.
+  vTaskDelete(nullptr);
 }
 
 } // namespace
