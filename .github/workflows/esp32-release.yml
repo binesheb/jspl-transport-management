@@ -17,9 +17,6 @@ permissions:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: firmware/esp32-minimal
 
     steps:
       - name: Checkout
@@ -44,9 +41,28 @@ jobs:
 
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Building JSPL Transport firmware $VERSION"
 
-      - name: Set firmware version
+      - name: Setup Arduino CLI
+        uses: arduino/setup-arduino-cli@v2
+
+      - name: Initialize Arduino CLI
+        run: |
+          arduino-cli config init \
+            --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+
+      - name: Install Espressif Arduino-ESP32 core 3.3.11
+        run: |
+          arduino-cli core update-index
+          arduino-cli core install esp32:esp32@3.3.11
+
+      - name: Install exact display libraries
+        run: |
+          arduino-cli lib update-index
+          arduino-cli lib install "Adafruit GFX Library@1.12.1"
+          arduino-cli lib install "Adafruit SSD1306@2.5.15"
+          arduino-cli lib install "Adafruit BusIO@1.17.2"
+
+      - name: Set release firmware version
         working-directory: .
         env:
           VERSION: ${{ steps.release.outputs.version }}
@@ -71,20 +87,28 @@ jobs:
           PY
           echo "$VERSION" > firmware/esp32-minimal/ota-version.txt
 
-      - name: Install PlatformIO
-        run: pip install --upgrade platformio
+      - name: Build Arduino IDE firmware
+        run: |
+          arduino-cli compile \
+            --fqbn esp32:esp32:esp32 \
+            --export-binaries \
+            firmware/arduino/JSPL_PVM_Gate
 
-      - name: Build firmware
-        run: pio run
-
-      - name: Verify firmware exists
-        run: test -s .pio/build/esp32dev/firmware.bin
+      - name: Locate and normalize firmware binary
+        run: |
+          BIN=$(find firmware/arduino/JSPL_PVM_Gate/build -type f -name '*.ino.bin' -print -quit)
+          if [ -z "$BIN" ]; then
+            echo "No Arduino firmware binary was produced."
+            find firmware/arduino/JSPL_PVM_Gate/build -type f -maxdepth 5 -print || true
+            exit 1
+          fi
+          cp "$BIN" firmware.bin
+          test -s firmware.bin
 
       - name: Generate firmware checksum
-        run: sha256sum .pio/build/esp32dev/firmware.bin | awk '{print $1}' > firmware.sha256
+        run: sha256sum firmware.bin | awk '{print $1}' > firmware.sha256
 
       - name: Publish GitHub Release
-        working-directory: .
         env:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ steps.release.outputs.tag }}
@@ -92,15 +116,15 @@ jobs:
           if gh release view "$TAG" >/dev/null 2>&1; then
             echo "Release $TAG already exists; replacing its assets."
             gh release upload "$TAG" \
-              firmware/esp32-minimal/.pio/build/esp32dev/firmware.bin \
+              firmware.bin \
               firmware/esp32-minimal/ota-version.txt \
-              firmware/esp32-minimal/firmware.sha256 \
+              firmware.sha256 \
               --clobber
           else
             gh release create "$TAG" \
-              firmware/esp32-minimal/.pio/build/esp32dev/firmware.bin \
+              firmware.bin \
               firmware/esp32-minimal/ota-version.txt \
-              firmware/esp32-minimal/firmware.sha256 \
+              firmware.sha256 \
               --title "$TAG" \
               --generate-notes
           fi
