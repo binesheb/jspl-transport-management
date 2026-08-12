@@ -29,7 +29,9 @@ bool versionNewer(const String &remote, const String &local) {
   return false;
 }
 
-String htmlEscape(String s) {
+// OTA-local name avoids collision with the dashboard's htmlEscape() because
+// Arduino IDE includes main.cpp and ota.cpp into one translation unit.
+String otaHtmlEscape(String s) {
   s.replace("&", "&amp;"); s.replace("<", "&lt;"); s.replace(">", "&gt;"); s.replace("\"", "&quot;");
   return s;
 }
@@ -37,7 +39,6 @@ String htmlEscape(String s) {
 bool connectInternet() {
   if (settings().wifiSsid.isEmpty()) return false;
   if (WiFi.status() == WL_CONNECTED) return true;
-
   WiFi.begin(settings().wifiSsid.c_str(), settings().wifiPassword.c_str());
   const uint32_t started = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - started < WIFI_CONNECT_TIMEOUT_MS) delay(200);
@@ -46,7 +47,7 @@ bool connectInternet() {
 
 String fetchText(const char *url) {
   WiFiClientSecure client;
-  client.setInsecure(); // Prototype; production will use certificate verification.
+  client.setInsecure();
   HTTPClient http;
   http.setConnectTimeout(OTA_HTTP_TIMEOUT_MS);
   http.setTimeout(OTA_HTTP_TIMEOUT_MS);
@@ -84,7 +85,7 @@ String bytesToHex(const uint8_t *bytes, size_t length) {
 
 bool performUpdate(const String &remoteVersion, const String &expectedChecksum) {
   WiFiClientSecure client;
-  client.setInsecure(); // Prototype only.
+  client.setInsecure();
   HTTPClient http;
   http.setConnectTimeout(OTA_HTTP_TIMEOUT_MS);
   http.setTimeout(OTA_HTTP_TIMEOUT_MS);
@@ -92,38 +93,25 @@ bool performUpdate(const String &remoteVersion, const String &expectedChecksum) 
   if (!http.begin(client, FIRMWARE_URL)) return false;
 
   const int status = http.GET();
-  if (status != HTTP_CODE_OK) {
-    http.end();
-    return false;
-  }
-
+  if (status != HTTP_CODE_OK) { http.end(); return false; }
   const int total = http.getSize();
-  if (total <= 0 || !Update.begin((size_t)total)) {
-    http.end();
-    return false;
-  }
+  if (total <= 0 || !Update.begin((size_t)total)) { http.end(); return false; }
 
   mbedtls_sha256_context sha;
   mbedtls_sha256_init(&sha);
-  // Arduino-ESP32 3.x ships a newer mbedTLS API; use the non-_ret names.
   if (mbedtls_sha256_starts(&sha, 0) != 0) {
-    mbedtls_sha256_free(&sha);
-    Update.abort();
-    http.end();
-    return false;
+    mbedtls_sha256_free(&sha); Update.abort(); http.end(); return false;
   }
 
   WiFiClient *stream = http.getStreamPtr();
   uint8_t buffer[2048];
   size_t written = 0;
-
   while (http.connected() && written < (size_t)total) {
     const size_t available = stream->available();
     if (!available) { delay(1); continue; }
     const size_t toRead = min(available, sizeof(buffer));
     const int readNow = stream->readBytes(buffer, toRead);
     if (readNow <= 0) continue;
-
     if (mbedtls_sha256_update(&sha, buffer, (size_t)readNow) != 0) {
       mbedtls_sha256_free(&sha); Update.abort(); http.end(); return false;
     }
@@ -133,7 +121,6 @@ bool performUpdate(const String &remoteVersion, const String &expectedChecksum) 
     }
     written += result;
   }
-
   http.end();
 
   uint8_t digest[32];
@@ -147,7 +134,6 @@ bool performUpdate(const String &remoteVersion, const String &expectedChecksum) 
     Update.abort();
     return false;
   }
-
   if (!Update.end(true)) {
     Serial.printf("[OTA] Update validation failed: %s\n", Update.errorString());
     return false;
@@ -164,16 +150,13 @@ void checkForUpdate() {
     Serial.println("[OTA] Internet unavailable; continuing with current firmware.");
     return;
   }
-
   const String remoteVersion = checksumToken(fetchText(VERSION_URL));
   if (remoteVersion.isEmpty()) {
     Serial.println("[OTA] No GitHub release available; continuing normally.");
     return;
   }
-
   Serial.printf("[OTA] Current %s / Latest %s\n", JSPL_FW_VERSION, remoteVersion.c_str());
   if (!versionNewer(remoteVersion, JSPL_FW_VERSION)) return;
-
   const String checksum = checksumToken(fetchText(CHECKSUM_URL));
   if (checksum.length() != 64) {
     Serial.println("[OTA] Invalid release checksum; update rejected.");
@@ -185,8 +168,8 @@ void checkForUpdate() {
 String networkPage(const String &notice = "") {
   String h = R"HTML(<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"><title>JSPL Network & OTA</title><style>
 :root{color-scheme:dark}body{font-family:system-ui;margin:0;padding:18px;background:#080b12;color:#fff}.wrap{max-width:560px;margin:auto}.panel{background:#151a24;border:1px solid #293142;border-radius:14px;padding:16px;margin-bottom:12px}h1{font-size:22px}label{display:block;font-size:12px;opacity:.7;margin-top:12px}input{box-sizing:border-box;width:100%;padding:11px;margin-top:5px;border-radius:9px;border:1px solid #333c4c;background:#0d1119;color:#fff}button,a{display:block;width:100%;box-sizing:border-box;padding:12px;margin-top:12px;border:0;border-radius:9px;background:#fff;color:#080b12;text-align:center;text-decoration:none;font-weight:800}.note{padding:10px;border-radius:9px;background:#10241f;color:#8ff0d5;font-size:13px}</style></head><body><div class="wrap"><h1>Network & OTA</h1>)HTML";
-  if (notice.length()) h += "<div class='note'>" + htmlEscape(notice) + "</div>";
-  h += "<div class='panel'><form method='POST' action='/api/network/save'><label>Wi-Fi SSID</label><input name='ssid' value='" + htmlEscape(settings().wifiSsid) + "'><label>Wi-Fi Password</label><input name='password' type='password' value='" + htmlEscape(settings().wifiPassword) + "'><label>Administrator PIN</label><input name='pin' type='password' required><button>SAVE NETWORK</button></form></div>";
+  if (notice.length()) h += "<div class='note'>" + otaHtmlEscape(notice) + "</div>";
+  h += "<div class='panel'><form method='POST' action='/api/network/save'><label>Wi-Fi SSID</label><input name='ssid' value='" + otaHtmlEscape(settings().wifiSsid) + "'><label>Wi-Fi Password</label><input name='password' type='password' value='" + otaHtmlEscape(settings().wifiPassword) + "'><label>Administrator PIN</label><input name='pin' type='password' required><button>SAVE NETWORK</button></form></div>";
   h += "<div class='panel'><b>Firmware " + String(JSPL_FW_VERSION) + "</b><p>Automatic check runs once after boot. No Internet means no update and normal operation continues.</p><form method='POST' action='/api/ota/check'><label>Administrator PIN</label><input name='pin' type='password' required><button>CHECK FOR UPDATE NOW</button></form></div><a href='/settings'>Device Settings</a><a href='/'>Dashboard</a></div></body></html>";
   return h;
 }
