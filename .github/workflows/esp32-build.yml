@@ -3,6 +3,7 @@ name: ESP32 Build Check
 on:
   push:
     branches:
+      - main
       - feature/esp32-minimal
   pull_request:
 
@@ -22,3 +23,12 @@ jobs:
         run: pip install --upgrade platformio
       - name: Build ESP32 firmware
         run: pio run
+      - name: Verify firmware binary
+        run: test -s .pio/build/esp32dev/firmware.bin
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jspl-esp32-firmware-${{ github.sha }}
+          path: firmware/esp32-minimal/.pio/build/esp32dev/firmware.bin
+          if-no-files-found: error
+          retention-days: 14
