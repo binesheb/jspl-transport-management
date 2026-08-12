@@ -1,16 +1,17 @@
 #pragma once
 
-// JSPL Transport Counter - HW-724 / ESP32-WROOM-32
-// Integrated OLED: SSD1306 128x64, I2C address 0x3C.
-// HW-724 OLED: SDA=GPIO5, SCL=GPIO4.
+// JSPL Transport Counter - HW-724 / ESP32-WROOM-32.
+// Hardware baseline: HW-724 with integrated 0.96" 128x64 SSD1306 OLED.
+// OLED is I2C: SDA=GPIO5, SCL=GPIO4, address=0x3C.
 
-// Staff readiness / release buttons (active LOW with internal pull-up)
+// Staff readiness / release buttons (active LOW with internal pull-up).
 constexpr uint8_t PIN_KALOOR    = 25;
 constexpr uint8_t PIN_VYTILLA   = 26;
 constexpr uint8_t PIN_VAZHAKALA = 13;
 
-// Optional buzzer. Set to 255 to disable.
-constexpr uint8_t PIN_BUZZER = 32;
+// Optional buzzer. GPIO16 is exposed on the HW-724 and is reserved for the buzzer.
+// Set to 255 to disable the buzzer.
+constexpr uint8_t PIN_BUZZER = 16;
 
 // Integrated 0.96" 128x64 SSD1306 OLED over I2C.
 constexpr uint8_t OLED_SDA = 5;
