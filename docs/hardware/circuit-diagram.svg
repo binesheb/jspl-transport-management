@@ -1,57 +1,57 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
 <rect width="1200" height="800" fill="white"/>
-<text x="600" y="45" text-anchor="middle" font-family="Arial" font-size="28" font-weight="700" fill="#163a63">PALARIVATTOM V1 COUNTER — CIRCUIT DIAGRAM</text>
-<text x="600" y="75" text-anchor="middle" font-family="Arial" font-size="15" fill="#555">ESP32 DevKit V1 • 128×64 SSD1306 SPI OLED • 3 hostel buttons • buzzer</text>
+<text x="600" y="45" text-anchor="middle" font-family="Arial" font-size="28" font-weight="700" fill="#163a63">PALARIVATTOM V1 COUNTER — HW-724</text>
+<text x="600" y="75" text-anchor="middle" font-family="Arial" font-size="15" fill="#555">ESP32-WROOM-32 • integrated SSD1306 128×64 I²C OLED • 3 buttons • buzzer</text>
 
 <!-- ESP32 -->
-<rect x="440" y="170" width="320" height="410" rx="22" fill="#20252b" stroke="#111" stroke-width="3"/>
-<text x="600" y="205" text-anchor="middle" font-family="Arial" font-size="22" font-weight="700" fill="white">ESP32 DEVKIT V1</text>
-<text x="600" y="230" text-anchor="middle" font-family="Arial" font-size="13" fill="#bbb">3.3V logic • INPUT_PULLUP buttons</text>
+<rect x="440" y="150" width="320" height="430" rx="22" fill="#20252b" stroke="#111" stroke-width="3"/>
+<text x="600" y="185" text-anchor="middle" font-family="Arial" font-size="22" font-weight="700" fill="white">HW-724</text>
+<text x="600" y="210" text-anchor="middle" font-family="Arial" font-size="13" fill="#bbb">ESP32-WROOM-32 • ESP32 Dev Module</text>
 
 <!-- buttons -->
-<text x="55" y="135" font-family="Arial" font-size="20" font-weight="700" fill="#163a63">HOSTEL BUTTONS</text>
+<text x="55" y="120" font-family="Arial" font-size="20" font-weight="700" fill="#163a63">STAFF BUTTONS</text>
 <g font-family="Arial">
-<rect x="55" y="175" width="220" height="75" rx="14" fill="#f7f7f7" stroke="#d33" stroke-width="3"/><circle cx="105" cy="212" r="22" fill="#222"/><text x="145" y="207" font-size="22" font-weight="700" fill="#d33">KAL</text><text x="145" y="230" font-size="15">GPIO 25</text>
-<rect x="55" y="285" width="220" height="75" rx="14" fill="#f7f7f7" stroke="#2857b7" stroke-width="3"/><circle cx="105" cy="322" r="22" fill="#222"/><text x="145" y="317" font-size="22" font-weight="700" fill="#2857b7">VYT</text><text x="145" y="340" font-size="15">GPIO 26</text>
-<rect x="55" y="395" width="220" height="75" rx="14" fill="#f7f7f7" stroke="#249447" stroke-width="3"/><circle cx="105" cy="432" r="22" fill="#222"/><text x="145" y="427" font-size="22" font-weight="700" fill="#249447">VAZ</text><text x="145" y="450" font-size="15">GPIO 27</text>
-<line x1="75" y1="250" x2="75" y2="540" stroke="#222" stroke-width="3"/><line x1="75" y1="540" x2="275" y2="540" stroke="#222" stroke-width="3"/><text x="55" y="570" font-size="16" font-weight="700">All button returns → GND</text>
+<rect x="55" y="160" width="220" height="75" rx="14" fill="#f7f7f7" stroke="#d33" stroke-width="3"/><circle cx="105" cy="197" r="22" fill="#222"/><text x="145" y="192" font-size="22" font-weight="700" fill="#d33">KAL</text><text x="145" y="215" font-size="15">GPIO 25</text>
+<rect x="55" y="270" width="220" height="75" rx="14" fill="#f7f7f7" stroke="#2857b7" stroke-width="3"/><circle cx="105" cy="307" r="22" fill="#222"/><text x="145" y="302" font-size="22" font-weight="700" fill="#2857b7">VYT</text><text x="145" y="325" font-size="15">GPIO 26</text>
+<rect x="55" y="380" width="220" height="75" rx="14" fill="#f7f7f7" stroke="#249447" stroke-width="3"/><circle cx="105" cy="417" r="22" fill="#222"/><text x="145" y="412" font-size="22" font-weight="700" fill="#249447">VAZ</text><text x="145" y="435" font-size="15">GPIO 13</text>
+<line x1="75" y1="235" x2="75" y2="525" stroke="#222" stroke-width="3"/><line x1="75" y1="525" x2="275" y2="525" stroke="#222" stroke-width="3"/><text x="55" y="555" font-size="16" font-weight="700">All button returns → GND</text>
 </g>
 
 <!-- button wires -->
-<line x1="275" y1="212" x2="440" y2="260" stroke="#d33" stroke-width="4"/>
-<line x1="275" y1="322" x2="440" y2="330" stroke="#2857b7" stroke-width="4"/>
-<line x1="275" y1="432" x2="440" y2="400" stroke="#249447" stroke-width="4"/>
+<line x1="275" y1="197" x2="440" y2="255" stroke="#d33" stroke-width="4"/>
+<line x1="275" y1="307" x2="440" y2="325" stroke="#2857b7" stroke-width="4"/>
+<line x1="275" y1="417" x2="440" y2="395" stroke="#249447" stroke-width="4"/>
 
-<!-- OLED -->
-<rect x="865" y="145" width="290" height="235" rx="18" fill="#f2f5f8" stroke="#163a63" stroke-width="3"/>
-<text x="1010" y="180" text-anchor="middle" font-family="Arial" font-size="20" font-weight="700" fill="#163a63">128×64 OLED</text>
-<text x="1010" y="205" text-anchor="middle" font-family="Arial" font-size="15">SSD1306 • SPI</text>
-<rect x="900" y="225" width="220" height="105" rx="8" fill="#050505"/>
-<text x="1010" y="260" text-anchor="middle" font-family="Arial" font-size="20" fill="white">KAL 90  VYT 12</text>
-<text x="1010" y="292" text-anchor="middle" font-family="Arial" font-size="20" fill="white">VAZ 8</text>
-<text x="1010" y="318" text-anchor="middle" font-family="Arial" font-size="12" fill="#ccc">READY TO BOARD</text>
+<!-- integrated OLED -->
+<rect x="850" y="130" width="300" height="285" rx="18" fill="#f2f5f8" stroke="#163a63" stroke-width="3"/>
+<text x="1000" y="165" text-anchor="middle" font-family="Arial" font-size="20" font-weight="700" fill="#163a63">INTEGRATED OLED</text>
+<text x="1000" y="190" text-anchor="middle" font-family="Arial" font-size="15">SSD1306 • 128×64 • I²C</text>
+<text x="1000" y="218" text-anchor="middle" font-family="Arial" font-size="14">SDA = GPIO 5 • SCL = GPIO 4</text>
+<text x="1000" y="242" text-anchor="middle" font-family="Arial" font-size="14">I²C address = 0x3C</text>
+<rect x="890" y="260" width="220" height="110" rx="8" fill="#050505"/>
+<text x="1000" y="294" text-anchor="middle" font-family="Arial" font-size="20" fill="white">KAL 90   VYT 12</text>
+<text x="1000" y="326" text-anchor="middle" font-family="Arial" font-size="20" fill="white">VAZ 8</text>
+<text x="1000" y="354" text-anchor="middle" font-family="Arial" font-size="12" fill="#ccc">READY TO BOARD</text>
 
-<!-- OLED wires -->
+<!-- I2C wires -->
 <g font-family="Arial" font-size="14" font-weight="700">
-<line x1="760" y1="270" x2="865" y2="270" stroke="#f28c28" stroke-width="3"/><text x="770" y="262" fill="#f28c28">GPIO16 → DC</text>
-<line x1="760" y1="300" x2="865" y2="300" stroke="#e5b72c" stroke-width="3"/><text x="770" y="292" fill="#b28c00">GPIO17 → RST</text>
-<line x1="760" y1="330" x2="865" y2="330" stroke="#2d9b52" stroke-width="3"/><text x="770" y="322" fill="#2d9b52">GPIO5 → CS</text>
-<line x1="760" y1="360" x2="865" y2="360" stroke="#2457b7" stroke-width="3"/><text x="770" y="352" fill="#2457b7">GPIO18 → SCK</text>
-<line x1="760" y1="390" x2="865" y2="390" stroke="#7b39b7" stroke-width="3"/><text x="770" y="382" fill="#7b39b7">GPIO23 → MOSI</text>
+<line x1="760" y1="300" x2="850" y2="300" stroke="#2457b7" stroke-width="4"/><text x="765" y="292" fill="#2457b7">GPIO5 → SDA</text>
+<line x1="760" y1="345" x2="850" y2="345" stroke="#f28c28" stroke-width="4"/><text x="765" y="337" fill="#c66c00">GPIO4 → SCL</text>
+<text x="765" y="380" fill="#555">VCC → 3V3 • GND → GND</text>
 </g>
+
+<!-- buzzer -->
+<rect x="850" y="475" width="300" height="110" rx="18" fill="#f7f7f7" stroke="#163a63" stroke-width="3"/>
+<text x="1000" y="505" text-anchor="middle" font-family="Arial" font-size="19" font-weight="700">ACTIVE BUZZER</text>
+<text x="1000" y="535" text-anchor="middle" font-family="Arial" font-size="14">GPIO 16 → signal / +</text>
+<text x="1000" y="560" text-anchor="middle" font-family="Arial" font-size="14">GND → −</text>
+<line x1="760" y1="525" x2="850" y2="525" stroke="#7b39b7" stroke-width="4"/>
 
 <!-- power -->
 <rect x="420" y="625" width="360" height="95" rx="15" fill="#fff7e6" stroke="#d28b00" stroke-width="2"/>
 <text x="600" y="655" text-anchor="middle" font-family="Arial" font-size="18" font-weight="700" fill="#8a5a00">POWER</text>
-<text x="600" y="682" text-anchor="middle" font-family="Arial" font-size="14">USB 5V → ESP32 • OLED powered from 3V3</text>
+<text x="600" y="682" text-anchor="middle" font-family="Arial" font-size="14">USB 5V → HW-724 • OLED uses 3V3</text>
 <text x="600" y="704" text-anchor="middle" font-family="Arial" font-size="14">All grounds must be common</text>
-
-<!-- buzzer -->
-<rect x="865" y="455" width="250" height="110" rx="18" fill="#f7f7f7" stroke="#163a63" stroke-width="3"/>
-<text x="990" y="485" text-anchor="middle" font-family="Arial" font-size="19" font-weight="700">ACTIVE BUZZER</text>
-<text x="990" y="512" text-anchor="middle" font-family="Arial" font-size="14">GPIO 32 → + / signal</text>
-<text x="990" y="538" text-anchor="middle" font-family="Arial" font-size="14">GND → −</text>
-<line x1="760" y1="500" x2="865" y2="500" stroke="#7b39b7" stroke-width="4"/>
 
 <!-- notes -->
 <rect x="55" y="620" width="310" height="100" rx="15" fill="#eef6ff" stroke="#5b89b8" stroke-width="2"/>
@@ -59,5 +59,5 @@
 <text x="75" y="674" font-family="Arial" font-size="14">Short press = +1</text>
 <text x="75" y="696" font-family="Arial" font-size="14">10-second hold = release mode</text>
 
-<text x="600" y="765" text-anchor="middle" font-family="Arial" font-size="13" fill="#666">Verify the exact OLED module pin labels before wiring. This diagram assumes an SPI SSD1306 module.</text>
+<text x="600" y="765" text-anchor="middle" font-family="Arial" font-size="13" fill="#666">Buttons use INPUT_PULLUP. No external pull-up resistor is required.</text>
 </svg>
