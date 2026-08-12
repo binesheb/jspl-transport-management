@@ -55,8 +55,8 @@ A bus becomes `READY TO DEPART` only when its active boarding session is complet
 ## Architecture
 
 ```text
-ESP32 Exit Counter ----\
-                        \
+ESP32 Exit Counter ----\\
+                        \\
                          JSPL IoT -> Internet -> Cloud API / MQTT
                         /                         |          |
 ESP32 Bus Units --------/                          |          +--> Web Dashboard
@@ -87,6 +87,40 @@ docs/          Architecture, hardware and operating documentation
 config/        Non-secret development configuration
 deployment/    Docker and deployment configuration
 ```
+
+## Arduino IDE build
+
+The Arduino IDE entry point is:
+
+`firmware/arduino/JSPL_PVM_Gate/JSPL_PVM_Gate.ino`
+
+The Arduino sketch intentionally includes the same source used by the PlatformIO build, so there is one firmware implementation. The PlatformIO project declares the display libraries automatically, but Arduino IDE does not automatically read `platformio.ini` dependency declarations.
+
+### Required Arduino libraries
+
+Install these from **Arduino IDE → Library Manager** before compiling:
+
+- **Adafruit GFX Library** — `1.12.1` or newer
+- **Adafruit SSD1306** — `2.5.15` or newer
+- **Adafruit BusIO** — installed automatically as a dependency of Adafruit GFX/SSD1306
+
+The ESP32 core used by the current local build is **Espressif ESP32 3.3.11**.
+
+If the compiler reports:
+
+```text
+fatal error: Adafruit_SSD1306.h: No such file or directory
+```
+
+install **Adafruit SSD1306** through Library Manager and compile again. This is a missing Arduino IDE library, not a firmware source-code error.
+
+### Recommended build
+
+For CI/release builds, use PlatformIO because `firmware/esp32-minimal/platformio.ini` already declares the required dependencies and the OTA partition configuration.
+
+## OTA updates
+
+The ESP32 firmware checks the configured GitHub Release on boot when network connectivity is available. A newer firmware is downloaded, verified and installed through the OTA partition before rebooting. If GitHub or the Internet is unavailable, the existing firmware continues operating normally.
 
 ## Development approach
 
