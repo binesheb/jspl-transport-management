@@ -4,6 +4,12 @@ on:
   push:
     tags:
       - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version without v, e.g. 0.1.0'
+        required: true
+        type: string
 
 permissions:
   contents: write
@@ -19,17 +25,39 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Set release version
+      - name: Resolve release version
+        id: release
+        shell: bash
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          export VERSION
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+            TAG="v${VERSION}"
+          else
+            TAG="${GITHUB_REF_NAME}"
+            VERSION="${TAG#v}"
+          fi
+
+          if ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Invalid semantic version: $VERSION"
+            exit 1
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          echo "Building JSPL Transport firmware $VERSION"
+
+      - name: Set firmware version
+        working-directory: .
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
           python - <<'PY'
           import os
           import re
           from pathlib import Path
 
           version = os.environ["VERSION"]
-          path = Path("src/version.h")
+          path = Path("firmware/esp32-minimal/src/version.h")
           text = path.read_text()
           text, count = re.subn(
               r'#define JSPL_FW_VERSION\s+"[^"]+"',
@@ -41,13 +69,16 @@ jobs:
               raise SystemExit("JSPL_FW_VERSION definition not found")
           path.write_text(text)
           PY
-          echo "$VERSION" > ota-version.txt
+          echo "$VERSION" > firmware/esp32-minimal/ota-version.txt
 
       - name: Install PlatformIO
         run: pip install --upgrade platformio
 
       - name: Build firmware
         run: pio run
+
+      - name: Verify firmware exists
+        run: test -s .pio/build/esp32dev/firmware.bin
 
       - name: Generate firmware checksum
         run: sha256sum .pio/build/esp32dev/firmware.bin | awk '{print $1}' > firmware.sha256
@@ -56,10 +87,20 @@ jobs:
         working-directory: .
         env:
           GH_TOKEN: ${{ github.token }}
+          TAG: ${{ steps.release.outputs.tag }}
         run: |
-          gh release create "$GITHUB_REF_NAME" \
-            "firmware/esp32-minimal/.pio/build/esp32dev/firmware.bin" \
-            "firmware/esp32-minimal/ota-version.txt" \
-            "firmware/esp32-minimal/firmware.sha256" \
-            --title "$GITHUB_REF_NAME" \
-            --generate-notes
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "Release $TAG already exists; replacing its assets."
+            gh release upload "$TAG" \
+              firmware/esp32-minimal/.pio/build/esp32dev/firmware.bin \
+              firmware/esp32-minimal/ota-version.txt \
+              firmware/esp32-minimal/firmware.sha256 \
+              --clobber
+          else
+            gh release create "$TAG" \
+              firmware/esp32-minimal/.pio/build/esp32dev/firmware.bin \
+              firmware/esp32-minimal/ota-version.txt \
+              firmware/esp32-minimal/firmware.sha256 \
+              --title "$TAG" \
+              --generate-notes
+          fi
