@@ -6,7 +6,7 @@ DeviceConfig gConfig;
 
 void setDefaults() {
   gConfig.deviceId = "PVM-GATE-01";
-  gConfig.deviceName = "Palarivattom Gate";
+  gConfig.deviceName = "JSPL Transport Gate Controller";
   gConfig.showroom = "Palarivattom";
   gConfig.installation = "Staff Exit";
 
@@ -26,11 +26,11 @@ void setDefaults() {
   gConfig.debounceMs = 35;
   gConfig.messageMs = 1800;
 
-  // Network credentials are intentionally blank until configured locally.
+  // Network credentials are configured locally and stored only in NVS.
   gConfig.wifiSsid = "";
   gConfig.wifiPassword = "";
 
-  // Pilot default. Can be changed from the protected settings page.
+  // Pilot default. Changeable from the protected dashboard settings.
   gConfig.adminPin = "binesheb@16";
 }
 
@@ -45,9 +45,7 @@ void settingsBegin(Preferences &prefs) {
   settingsLoad();
 }
 
-DeviceConfig &settings() {
-  return gConfig;
-}
+DeviceConfig &settings() { return gConfig; }
 
 void settingsLoad() {
   if (!gPrefs) return;
@@ -79,7 +77,6 @@ void settingsLoad() {
 
 bool settingsSave(const DeviceConfig &incoming) {
   if (!gPrefs) return false;
-
   gConfig = incoming;
 
   gPrefs->putString("device_id", gConfig.deviceId);
@@ -105,7 +102,6 @@ bool settingsSave(const DeviceConfig &incoming) {
   gPrefs->putString("wifi_ssid", gConfig.wifiSsid);
   gPrefs->putString("wifi_pass", gConfig.wifiPassword);
   gPrefs->putString("admin_pin", gConfig.adminPin);
-
   return true;
 }
 
