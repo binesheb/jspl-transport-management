@@ -21,7 +21,7 @@ constexpr uint8_t SCREEN_WIDTH = 128;
 constexpr uint8_t SCREEN_HEIGHT = 64;
 
 // Operational defaults.
-constexpr uint32_t DEFAULT_LONG_PRESS_MS = 10000;
+constexpr uint32_t DEFAULT_LONG_PRESS_MS = 5000;
 constexpr uint32_t DEFAULT_BUTTON_DEBOUNCE_MS = 35;
 constexpr uint32_t DEFAULT_MESSAGE_MS = 1400;
 constexpr uint32_t MAX_QUEUE_COUNT = 9999;
