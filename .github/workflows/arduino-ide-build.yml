@@ -3,12 +3,17 @@ name: Arduino IDE Build Check
 on:
   push:
     branches:
+      - main
       - feature/esp32-minimal
   pull_request:
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -17,19 +22,37 @@ jobs:
         uses: arduino/setup-arduino-cli@v2
 
       - name: Initialize Arduino CLI
-        run: arduino-cli config init --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
+        run: |
+          arduino-cli config init \
+            --additional-urls https://espressif.github.io/arduino-esp32/package_esp32_index.json
 
-      - name: Install ESP32 core
+      - name: Install Espressif Arduino-ESP32 core 3.3.11
         run: |
           arduino-cli core update-index
-          arduino-cli core install esp32:esp32
+          arduino-cli core install esp32:esp32@3.3.11
 
-      - name: Install libraries
+      - name: Install exact display libraries
         run: |
           arduino-cli lib update-index
-          arduino-cli lib install "Adafruit GFX Library"
-          arduino-cli lib install "Adafruit SSD1306"
+          arduino-cli lib install "Adafruit GFX Library@1.12.1"
+          arduino-cli lib install "Adafruit SSD1306@2.5.15"
+          arduino-cli lib install "Adafruit BusIO@1.17.2"
 
-      - name: Compile Arduino IDE sketch
+      - name: Show installed toolchain
         run: |
-          arduino-cli compile --fqbn esp32:esp32:esp32 firmware/arduino/JSPL_PVM_Gate
+          arduino-cli core list
+          arduino-cli lib list
+
+      - name: Compile Arduino IDE firmware
+        run: |
+          arduino-cli compile \
+            --fqbn esp32:esp32:esp32 \
+            --export-binaries \
+            firmware/arduino/JSPL_PVM_Gate
+
+      - name: Upload Arduino firmware artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jspl-pvm-gate-arduino-${{ github.sha }}
+          path: firmware/arduino/JSPL_PVM_Gate/build/
+          if-no-files-found: warn
