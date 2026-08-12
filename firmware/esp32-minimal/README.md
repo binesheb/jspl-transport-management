@@ -4,6 +4,21 @@ This firmware is the first real hardware prototype for the Palarivattom showroom
 
 It runs **completely on one ESP32**. The ESP32 hosts the web server and can create its own Wi-Fi access point, so no cloud server, Raspberry Pi, PC or Internet connection is required for the pilot counter workflow.
 
+## Actual pilot hardware
+
+The Palarivattom pilot hardware is fixed to the **HW-724 / ESP32-WROOM-32** board shown in the project hardware documentation.
+
+- MCU: ESP32-WROOM-32
+- Board: HW-724
+- PlatformIO / Arduino target: `esp32dev` / ESP32 Dev Module
+- Integrated OLED: 0.96" 128x64 SSD1306
+- OLED interface: I2C
+- OLED SDA: GPIO 5
+- OLED SCL: GPIO 4
+- OLED address: `0x3C`
+- USB: Micro-USB
+- USB-UART: CP2102
+
 ## What this version does
 
 Three configurable destination buttons:
@@ -45,7 +60,7 @@ The bus controller is **not part of V1**. This device is only a reliable three-c
 
 ## OLED UI
 
-The display is a **128x64 monochrome OLED**.
+The display is the integrated **128x64 monochrome SSD1306 I2C OLED**.
 
 ```text
 PVM-GATE-01
@@ -60,38 +75,64 @@ During release mode it switches to a focused screen showing waiting and exited c
 
 ## Hardware
 
-- ESP32 DevKit V1 / compatible classic ESP32
-- 128x64 SSD1306 **SPI** OLED
+- HW-724 / ESP32-WROOM-32
+- Integrated 0.96" 128x64 SSD1306 I2C OLED
 - 3 momentary push buttons
-- Optional buzzer
+- Optional active buzzer
 
 ### Pinout
-
-The current hardware configuration is in `src/config.h`.
 
 | Function | GPIO |
 |---|---:|
 | KAL button | 25 |
 | VYT button | 26 |
-| VAZ button | 27 |
-| Buzzer | 32 |
-| OLED SCK | 18 |
-| OLED MOSI | 23 |
-| OLED CS | 5 |
-| OLED DC | 16 |
-| OLED RST | 17 |
+| VAZ button | 13 |
+| Buzzer | 16 |
+| OLED SDA | 5 |
+| OLED SCL | 4 |
+| OLED I2C address | `0x3C` |
 
-OLED power:
-
-- VCC → 3.3V
-- GND → GND
+### Button wiring
 
 Buttons use `INPUT_PULLUP`:
 
-- One side → GPIO
-- Other side → GND
+```text
+GPIO 25 ── KAL button ── GND
+GPIO 26 ── VYT button ── GND
+GPIO 13 ── VAZ button ── GND
+```
 
-The pin map assumes a classic ESP32 DevKit / ESP32-WROOM style board and an SPI SSD1306 module. If the actual board or OLED uses different pins/interface, change only `src/config.h`.
+No external pull-up resistor is required.
+
+### OLED
+
+The OLED is integrated into the HW-724 board:
+
+```text
+GPIO 5 ── SDA
+GPIO 4 ── SCL
+3V3    ── VCC
+GND    ── GND
+```
+
+### Buzzer
+
+For the pilot hardware:
+
+```text
+GPIO 16 ── active buzzer signal / +
+GND     ── buzzer −
+```
+
+Use an appropriate transistor/driver if the selected buzzer requires more current than an ESP32 GPIO should supply directly.
+
+### Circuit diagram
+
+See the repository diagram:
+
+`docs/hardware/circuit-diagram.svg`
+
+The diagram is based on the actual HW-724 pinout supplied for this pilot. It replaces the earlier generic SPI-OLED circuit.
 
 ## Local web server
 
@@ -150,7 +191,7 @@ The following parameters are stored in the ESP32:
 
 - Long-press duration — default 10,000 ms
 - Button debounce — default 35 ms
-- OLED message duration — default 1,800 ms
+- OLED message duration — default 1,400 ms
 
 ### Security
 
@@ -213,13 +254,7 @@ Validate OTA image
 Reboot into new firmware
 ```
 
-The release pipeline publishes three assets:
-
-- `firmware.bin`
-- `ota-version.txt`
-- `firmware.sha256`
-
-GitHub supports direct download URLs for assets attached to the latest release. The device uses those release assets as its update source.
+The release pipeline publishes firmware and checksum assets for OTA distribution.
 
 **Current security status:** HTTPS is used for the prototype, but certificate verification is intentionally not yet enabled. SHA-256 protects against corrupted or incomplete firmware installation; it is **not a substitute for authenticated firmware signing**. Before production rollout, add certificate verification and cryptographic firmware signing.
 
@@ -233,17 +268,19 @@ For the production architecture, confirmed transport events should additionally 
 
 ## Build
 
-Open `firmware/esp32-minimal` in PlatformIO and upload to an ESP32 DevKit.
+Open `firmware/esp32-minimal` in PlatformIO and select the ESP32 Dev Module / `esp32dev` target.
 
 Then:
 
-1. Open Serial Monitor at 115200 baud.
-2. Connect a phone to `JSPL-PVM-GATE`.
-3. Open `http://192.168.4.1`.
-4. Open `/settings` and change the development PIN.
-5. Open `/network` and configure JSPL IoT only if OTA testing is required.
-6. Test the three physical buttons.
-7. Power-cycle the ESP32 and verify the counts remain intact.
+1. Connect the HW-724 using Micro-USB.
+2. Open Serial Monitor at 115200 baud.
+3. Connect a phone to `JSPL-PVM-GATE`.
+4. Open `http://192.168.4.1`.
+5. Open `/settings` and change the development PIN.
+6. Open `/network` and configure JSPL IoT only if OTA testing is required.
+7. Test the three physical buttons.
+8. Verify the OLED displays correctly.
+9. Power-cycle the ESP32 and verify the counts remain intact.
 
 ## Release process
 
