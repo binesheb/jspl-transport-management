@@ -2,13 +2,13 @@ services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: transport
-      POSTGRES_USER: transport
-      POSTGRES_PASSWORD: transport
+      POSTGRES_DB: ${POSTGRES_DB:-transport}
+      POSTGRES_USER: ${POSTGRES_USER:-transport}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U transport -d transport"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-transport} -d ${POSTGRES_DB:-transport}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -23,24 +23,26 @@ services:
   backend:
     build: ./backend
     environment:
-      APP_ENV: development
-      DATABASE_URL: postgresql+psycopg://transport:transport@db:5432/transport
-      MQTT_HOST: mosquitto
-      MQTT_PORT: 1883
+      APP_ENV: ${APP_ENV:-development}
+      DATABASE_URL: ${DATABASE_URL}
+      MQTT_HOST: ${MQTT_HOST:-mosquitto}
+      MQTT_PORT: ${MQTT_PORT:-1883}
+      MQTT_USERNAME: ${MQTT_USERNAME:-}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:-}
     depends_on:
       db:
         condition: service_healthy
       mosquitto:
         condition: service_started
     ports:
-      - "8000:8000"
+      - "${API_PORT:-8000}:8000"
 
   dashboard:
     build: ./dashboard
     depends_on:
       - backend
     ports:
-      - "8080:80"
+      - "${DASHBOARD_PORT:-8080}:80"
 
 volumes:
   postgres_data:
