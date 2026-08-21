@@ -20,14 +20,22 @@ Select the correct ESP32 board and serial port, compile, then upload. Confirm th
 
 ## Server and dashboard
 
-Use a safe Git-based update so local changes are never silently overwritten:
+Before a first deployment or update, run the checked-in dependency bootstrap helper:
+
+```bash
+bash scripts/bootstrap.sh
+```
+
+The helper verifies Docker and Docker Compose v2, creates `.env` from `.env.example` when needed without overwriting an existing configuration, validates the Compose model, and refreshes declared images/build dependencies. Review generated configuration before starting production services.
+
+For updates, use a safe Git-based flow so local changes are never silently overwritten:
 
 ```text
 git fetch origin main
 git status --short
 git diff --exit-code || stop and review local changes
 git merge --ff-only origin/main
-docker compose pull
+bash scripts/bootstrap.sh
 docker compose up -d --remove-orphans
 ```
 
