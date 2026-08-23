@@ -6,6 +6,11 @@ The project follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-08-23
+
+### Added
+- Added a FastAPI `/health` smoke test as a regression guard for the backend service lifecycle.
+
 ## [0.1.1] - 2026-08-20
 
 ### Fixed
