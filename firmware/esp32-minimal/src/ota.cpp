@@ -99,9 +99,7 @@ bool performUpdate(const String &remoteVersion, const String &expectedChecksum) 
 
   mbedtls_sha256_context sha;
   mbedtls_sha256_init(&sha);
-  if (mbedtls_sha256_starts(&sha, 0) != 0) {
-    mbedtls_sha256_free(&sha); Update.abort(); http.end(); return false;
-  }
+  mbedtls_sha256_starts(&sha, 0);
 
   WiFiClient *stream = http.getStreamPtr();
   uint8_t buffer[2048];
@@ -112,9 +110,7 @@ bool performUpdate(const String &remoteVersion, const String &expectedChecksum) 
     const size_t toRead = min(available, sizeof(buffer));
     const int readNow = stream->readBytes(buffer, toRead);
     if (readNow <= 0) continue;
-    if (mbedtls_sha256_update(&sha, buffer, (size_t)readNow) != 0) {
-      mbedtls_sha256_free(&sha); Update.abort(); http.end(); return false;
-    }
+    mbedtls_sha256_update(&sha, buffer, (size_t)readNow);
     const size_t result = Update.write(buffer, (size_t)readNow);
     if (result != (size_t)readNow) {
       mbedtls_sha256_free(&sha); Update.abort(); http.end(); return false;
@@ -124,7 +120,8 @@ bool performUpdate(const String &remoteVersion, const String &expectedChecksum) 
   http.end();
 
   uint8_t digest[32];
-  const bool hashOK = written == (size_t)total && mbedtls_sha256_finish(&sha, digest) == 0;
+  const bool hashOK = written == (size_t)total;
+  mbedtls_sha256_finish(&sha, digest);
   mbedtls_sha256_free(&sha);
   if (!hashOK) { Update.abort(); return false; }
 
