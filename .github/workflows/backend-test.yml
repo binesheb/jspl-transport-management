@@ -21,9 +21,25 @@ permissions:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: transport
+          POSTGRES_USER: transport
+          POSTGRES_PASSWORD: transport
+        options: >-
+          --health-cmd "pg_isready -U transport -d transport"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+        ports:
+          - 5432:5432
     defaults:
       run:
         working-directory: backend
+    env:
+      DATABASE_URL: postgresql+psycopg://transport:transport@localhost:5432/transport
 
     steps:
       - uses: actions/checkout@v4
