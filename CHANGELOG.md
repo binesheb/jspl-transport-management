@@ -6,6 +6,12 @@ The project follows Semantic Versioning (`MAJOR.MINOR.PATCH`).
 
 ## [Unreleased]
 
+### Fixed
+- Restored compatibility with the current ESP32 SHA-256 API used by the firmware OTA integrity check.
+
+### CI
+- Added PostgreSQL service provisioning for backend test validation.
+
 ## [0.1.2] - 2026-08-23
 
 ### Added
