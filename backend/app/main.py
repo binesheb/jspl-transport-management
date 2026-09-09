@@ -1,8 +1,11 @@
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from typing import Any
+from uuid import uuid4
 
 from fastapi import Depends, FastAPI, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -21,21 +24,52 @@ from .schemas import (
 )
 
 
+# The field PoC dispatch store is intentionally lightweight. It will be replaced
+# by persistent driver/booking models without changing the mobile contract.
+drivers: dict[str, dict[str, Any]] = {}
+bookings: dict[str, dict[str, Any]] = {}
+
+
+class DriverOnlineRequest(BaseModel):
+    driver_id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    vehicle: str = "Vehicle"
+
+
+class DriverLocationRequest(BaseModel):
+    driver_id: str
+    latitude: float
+    longitude: float
+    accuracy: float | None = None
+    speed: float | None = None
+    heading: float | None = None
+
+
+class BookingCreateRequest(BaseModel):
+    pickup: str = Field(min_length=1)
+    destination: str = Field(min_length=1)
+    requested_for: str = "now"
+
+
+class BookingActionRequest(BaseModel):
+    driver_id: str
+
+
+class BookingStatusRequest(BaseModel):
+    status: str
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
     yield
 
 
-app = FastAPI(
-    title="JSPL Transport Management API",
-    version="0.1.0",
-    lifespan=lifespan,
-)
+app = FastAPI(title="JSPL Transport Management API", version="0.2.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:8080", "http://127.0.0.1:8080"],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -44,6 +78,143 @@ app.add_middleware(
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
+
+
+@app.get("/api/poc/drivers")
+def poc_drivers() -> list[dict[str, Any]]:
+    return list(drivers.values())
+
+
+@app.post("/api/poc/drivers/online")
+def driver_online(payload: DriverOnlineRequest) -> dict[str, Any]:
+    driver = drivers.get(payload.driver_id, {})
+    driver.update(
+        {
+            "driver_id": payload.driver_id,
+            "name": payload.name,
+            "vehicle": payload.vehicle,
+            "online": True,
+            "status": "available",
+            "location": driver.get("location"),
+            "updated_at": datetime.now(timezone.utc).isoformat(),
+        }
+    )
+    drivers[payload.driver_id] = driver
+    return driver
+
+
+@app.post("/api/poc/drivers/offline")
+def driver_offline(payload: BookingActionRequest) -> dict[str, Any]:
+    driver = drivers.get(payload.driver_id)
+    if not driver:
+        raise HTTPException(404, "Driver not found")
+    driver["online"] = False
+    driver["status"] = "offline"
+    driver["updated_at"] = datetime.now(timezone.utc).isoformat()
+    return driver
+
+
+@app.post("/api/poc/drivers/location")
+def driver_location(payload: DriverLocationRequest) -> dict[str, Any]:
+    driver = drivers.get(payload.driver_id)
+    if not driver:
+        raise HTTPException(404, "Driver not online")
+    driver["location"] = {
+        "latitude": payload.latitude,
+        "longitude": payload.longitude,
+        "accuracy": payload.accuracy,
+        "speed": payload.speed,
+        "heading": payload.heading,
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
+    driver["updated_at"] = datetime.now(timezone.utc).isoformat()
+    return driver
+
+
+@app.post("/api/poc/bookings", status_code=status.HTTP_201_CREATED)
+def create_poc_booking(payload: BookingCreateRequest) -> dict[str, Any]:
+    booking_id = f"JD-{uuid4().hex[:8].upper()}"
+    booking = {
+        "booking_id": booking_id,
+        "pickup": payload.pickup,
+        "destination": payload.destination,
+        "requested_for": payload.requested_for,
+        "status": "searching",
+        "driver_id": None,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    bookings[booking_id] = booking
+    return booking
+
+
+@app.get("/api/poc/bookings")
+def list_poc_bookings() -> list[dict[str, Any]]:
+    return sorted(bookings.values(), key=lambda item: item["created_at"], reverse=True)
+
+
+@app.get("/api/poc/bookings/{booking_id}")
+def get_poc_booking(booking_id: str) -> dict[str, Any]:
+    booking = bookings.get(booking_id)
+    if not booking:
+        raise HTTPException(404, "Booking not found")
+    return booking
+
+
+@app.post("/api/poc/bookings/{booking_id}/offer")
+def offer_booking(booking_id: str, payload: BookingActionRequest) -> dict[str, Any]:
+    booking = bookings.get(booking_id)
+    driver = drivers.get(payload.driver_id)
+    if not booking:
+        raise HTTPException(404, "Booking not found")
+    if not driver or not driver.get("online"):
+        raise HTTPException(409, "Driver is not available")
+    if driver.get("status") != "available":
+        raise HTTPException(409, "Driver is not available")
+    booking["status"] = "offered"
+    booking["offered_to"] = payload.driver_id
+    driver["status"] = "offered"
+    return booking
+
+
+@app.post("/api/poc/bookings/{booking_id}/accept")
+def accept_booking(booking_id: str, payload: BookingActionRequest) -> dict[str, Any]:
+    booking = bookings.get(booking_id)
+    driver = drivers.get(payload.driver_id)
+    if not booking:
+        raise HTTPException(404, "Booking not found")
+    if not driver or driver.get("status") != "offered" or booking.get("offered_to") != payload.driver_id:
+        raise HTTPException(409, "Booking offer is no longer available")
+    booking["status"] = "assigned"
+    booking["driver_id"] = payload.driver_id
+    driver["status"] = "assigned"
+    return booking
+
+
+@app.post("/api/poc/bookings/{booking_id}/decline")
+def decline_booking(booking_id: str, payload: BookingActionRequest) -> dict[str, Any]:
+    booking = bookings.get(booking_id)
+    driver = drivers.get(payload.driver_id)
+    if not booking or not driver:
+        raise HTTPException(404, "Booking or driver not found")
+    if booking.get("offered_to") == payload.driver_id and booking.get("status") == "offered":
+        driver["status"] = "available"
+        booking["status"] = "searching"
+        booking.pop("offered_to", None)
+    return booking
+
+
+@app.post("/api/poc/bookings/{booking_id}/status")
+def update_poc_booking(booking_id: str, payload: BookingStatusRequest) -> dict[str, Any]:
+    booking = bookings.get(booking_id)
+    if not booking:
+        raise HTTPException(404, "Booking not found")
+    allowed = {"assigned", "driver_en_route", "arrived", "in_trip", "completed", "cancelled"}
+    if payload.status not in allowed:
+        raise HTTPException(422, "Unsupported booking status")
+    booking["status"] = payload.status
+    if payload.status == "completed" and booking.get("driver_id") in drivers:
+        drivers[booking["driver_id"]]["status"] = "available"
+    return booking
 
 
 @app.post("/api/showrooms", response_model=ShowroomRead, status_code=status.HTTP_201_CREATED)
@@ -116,11 +287,9 @@ def start_trip(trip_id: str, db: Session = Depends(get_db)) -> Trip:
 def ingest_event(payload: EventCreate, db: Session = Depends(get_db)) -> TransportEvent:
     if not db.get(Trip, payload.trip_id):
         raise HTTPException(status_code=404, detail="Trip not found")
-
     existing = db.scalar(select(TransportEvent).where(TransportEvent.event_id == payload.event_id))
     if existing:
         return existing
-
     event = TransportEvent(**payload.model_dump())
     db.add(event)
     db.commit()
@@ -133,7 +302,6 @@ def trip_counts(trip_id: str, db: Session = Depends(get_db)) -> TripCounts:
     trip = db.get(Trip, trip_id)
     if not trip:
         raise HTTPException(status_code=404, detail="Trip not found")
-
     rows = db.execute(
         select(TransportEvent.event_type, func.count(TransportEvent.id))
         .where(TransportEvent.trip_id == trip_id)
