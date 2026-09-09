@@ -1,20 +1,20 @@
 # Jayalakshmi DRIVE — Progress Tracker
 
-**Tracker version:** 0.1.0  
+**Tracker version:** 0.2.0  
 **Last updated:** 2026-09-09
 
-> This tracker is deliberately incremental. A phase is not considered complete merely because code exists; it must meet its exit criteria and have evidence recorded.
+> This tracker is deliberately incremental. A phase is not complete merely because code exists; it must meet its exit criteria and have evidence recorded.
 
 ## Overall status
 
-**Current phase:** Phase 01 — Product Foundation  
-**Overall completion:** 5% (planning/foundation only)
+**Current phase:** Phase 02 — Base Design System  
+**Overall completion:** 6% (foundation + design kickoff)
 
 | Phase | Name | Status | Target outcome |
 |---|---|---|---|
 | 00 | Product discovery / inspiration | 🟢 Complete | Requirements and reference patterns collected |
-| 01 | Product foundation | 🟡 In progress | Living PRD, roadmap, architecture principles, tracker |
-| 02 | Base design system | ⚪ Not started | Shared visual language and reusable components |
+| 01 | Product foundation | 🟢 Complete | Living PRD, roadmap, architecture principles, tracker |
+| 02 | Base design system | 🟡 In progress | Shared visual language and reusable components |
 | 03 | Rider app base UI | ⚪ Not started | Uber-like rider shell with mock data |
 | 04 | Driver app base UI | ⚪ Not started | Driver shell and trip-state UI with mock data |
 | 05 | Web booking base UI | ⚪ Not started | Responsive booking journey |
@@ -33,148 +33,70 @@
 | 18 | AI dispatch intelligence | ⚪ Not started | ETA prediction, demand and positioning |
 | 19 | Production deployment | ⚪ Not started | `fleet.jayalakshmi.in`, TLS, monitoring, backup |
 
-## Phase 00 — Product discovery / inspiration
-
-### Completed
-
-- [x] Review Uber-style rider/driver architecture patterns.
-- [x] Review Flutter rider/driver projects.
-- [x] Review OSM-based ride-hailing examples.
-- [x] Review GPS/fleet tracking projects.
-- [x] Review Redis/PostGIS dispatch architectures.
-- [x] Identify scheduled rides and future-driver assignment as first-class requirements.
-- [x] Decide Android + iOS + web are required.
-- [x] Decide map provider must be swappable.
-
-### Evidence / references
-
-See the project research notes maintained alongside this roadmap and the GitHub research links captured during product discovery.
-
-## Phase 01 — Product foundation
-
-### Completed
-
-- [x] Create living PRD.
-- [x] Define rider experience.
-- [x] Define driver experience.
-- [x] Define web booking experience.
-- [x] Define operations dashboard.
-- [x] Define multi-wave dispatch requirement.
-- [x] Define driver queue / future availability requirement.
-- [x] Define scheduled booking requirement.
-- [x] Define OSM-first / Google-later map strategy.
-- [x] Define progressive implementation policy.
-- [x] Define `fleet.jayalakshmi.in` deployment target.
-
-### Remaining
-
-- [ ] Finalize architecture decision record.
-- [ ] Finalize repository module boundaries.
-- [ ] Create GitHub issue set for Phase 02.
-- [ ] Define initial design tokens.
-
-### Exit criteria
-
-- PRD reviewed and accepted.
-- Phase roadmap accepted.
-- Design system scope defined.
-- No unresolved blocker preventing base UI work.
-
 ## Phase 02 — Base design system
 
-### Planned
+### Completed
 
-- Typography
-- Color tokens
-- Spacing
-- Cards
-- Buttons
-- Inputs
-- Bottom sheets
-- Map overlays
-- Driver cards
-- Booking status cards
-- Empty/loading/error states
-- Light/dark theme decision
-- Jayalakshmi branding
+- [x] Define Phase 02 design brief.
+- [x] Define screen inventory.
+- [x] Establish destination-first rider interaction as the primary pattern.
+- [x] Establish shared mobile + web component direction.
+- [x] Preserve map-provider independence in UI components.
+
+### In progress
+
+- [ ] Brand tokens
+- [ ] Typography
+- [ ] Color and surface tokens
+- [ ] Spacing and sizing
+- [ ] Buttons and inputs
+- [ ] Cards and bottom sheets
+- [ ] Map surfaces and controls
+- [ ] Driver cards
+- [ ] Booking status cards
+- [ ] Loading/empty/error states
+- [ ] Rider shell
+- [ ] Driver shell
+- [ ] Web booking shell
+- [ ] Operations dashboard shell
+- [ ] Responsive rules
+- [ ] Light/dark theme decision
+
+### Phase 02 files
+
+- `design/phase-02/DESIGN_BRIEF.md`
+- `design/phase-02/SCREEN_INVENTORY.md`
 
 ### Exit criteria
 
-A small reusable component set is available in the mobile and web foundations and can build the first screens without ad-hoc styling.
+A reusable visual/component foundation exists and the first Rider, Driver, Web Booking and Operations screens can be assembled without ad-hoc styling. No production backend, GPS or dispatch integration is required for this phase.
 
 ## Phase 03 — Rider app base UI
 
-### Planned screens
-
-1. Splash
-2. Login
-3. Home
-4. Destination search
-5. Search results
-6. Pickup confirmation
-7. Ride options
-8. Booking confirmation
-9. Searching for driver
-10. Driver assigned
-11. Driver arriving
-12. Active trip
-13. Trip completed
-14. History
-15. Profile/settings
-
-### Exit criteria
-
-A complete mocked rider journey can be demonstrated without a backend.
+Planned after Phase 02 exit. All flows use mock data first.
 
 ## Phase 04 — Driver app base UI
 
-### Planned screens
-
-1. Login
-2. Driver home
-3. Online/offline
-4. Incoming request
-5. Request details
-6. Accepted trip
-7. Navigation/pickup
-8. Arrived
-9. OTP
-10. Active trip
-11. Complete trip
-12. Upcoming queue
-13. History
-14. Profile/vehicle
-
-### Exit criteria
-
-A complete mocked driver journey can be demonstrated.
+Planned after Phase 03 foundation. All flows use mock data first.
 
 ## Phase 05 — Web booking base UI
 
-### Planned
-
-Build a responsive browser booking journey matching the rider app's core flow.
+Planned after the mobile foundations are established.
 
 ## Phase 06 — Operations dashboard base UI
 
-### Planned
-
-Build the control-room visual shell before wiring live data.
-
-## Phase 07 onward
-
-Detailed tasks will be added as each previous phase is completed. Do not pre-mark future implementation as complete.
+Planned after the core booking states are visually established.
 
 ## Progress update rule
 
 Whenever a phase changes:
 
 1. Update this file.
-2. Update `docs/PRD.md` if requirements changed.
-3. Add/close the related GitHub issue(s).
+2. Update `docs/PRD.md` if requirements change.
+3. Add/close related GitHub issues.
 4. Record test/build evidence where applicable.
 5. Create a small, reviewable commit/PR.
 
 ## Current next action
 
-**Build Phase 02 — the shared visual/design system before implementing the complete application flow.**
+**Continue Phase 02 by implementing the shared design tokens and base components.**
