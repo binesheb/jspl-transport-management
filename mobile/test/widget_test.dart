@@ -2,12 +2,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:jayalakshmi_drive/main.dart';
 
 void main() {
-  testWidgets('role picker renders rider and driver choices', (tester) async {
-    await tester.pumpWidget(const JayalakshmiDriveApp());
+  testWidgets('field PoC role picker renders manager and driver', (tester) async {
+    await tester.pumpWidget(const App());
 
     expect(find.text('JAYALAKSHMI'), findsOneWidget);
     expect(find.text('DRIVE'), findsOneWidget);
-    expect(find.text('Book a ride'), findsOneWidget);
-    expect(find.text('Drive'), findsOneWidget);
+    expect(find.text('Manager / Booker'), findsOneWidget);
+    expect(find.text('Driver'), findsOneWidget);
   });
 }
