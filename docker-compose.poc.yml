@@ -29,6 +29,35 @@ services:
       timeout: 3s
       retries: 20
 
+  api:
+    build: ./backend
+    restart: unless-stopped
+    environment:
+      APP_ENV: poc
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-jspl}:${POSTGRES_PASSWORD:-change-me}@postgres:5432/${POSTGRES_DB:-jspl_drive}
+      MQTT_HOST: localhost
+      MQTT_PORT: 1883
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "${API_PORT:-8000}:8000"
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  dashboard:
+    build: ./dashboard
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "${DASHBOARD_PORT:-8080}:80"
+
 volumes:
   postgres_data:
   redis_data:
