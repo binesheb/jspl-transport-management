@@ -2,7 +2,7 @@ name: Mobile Android APK
 
 on:
   push:
-    branches: [main, 'phase/**']
+    branches: [main]
     paths:
       - 'mobile/**'
       - '.github/workflows/mobile-android.yml'
@@ -29,8 +29,28 @@ jobs:
           channel: stable
           cache: true
 
-      - name: Create Flutter platform scaffolding
+      - name: Create Flutter Android platform
         run: flutter create --platforms=android .
+
+      - name: Configure Android permissions
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('android/app/src/main/AndroidManifest.xml')
+          text = p.read_text()
+          permissions = [
+              '    <uses-permission android:name="android.permission.INTERNET"/>',
+              '    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>',
+              '    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>',
+          ]
+          marker = '<manifest '
+          start = text.find('>')
+          if start == -1:
+              raise SystemExit('Invalid AndroidManifest.xml')
+          additions = '\n' + '\n'.join(x for x in permissions if x not in text) + '\n'
+          text = text[:start + 1] + additions + text[start + 1:]
+          p.write_text(text)
+          PY
 
       - name: Get dependencies
         run: flutter pub get
@@ -42,7 +62,7 @@ jobs:
         run: flutter test
 
       - name: Build release APK
-        run: flutter build apk --release
+        run: flutter build apk --release --dart-define=DRIVE_API=http://10.0.2.2:8000
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
