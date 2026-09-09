@@ -1,167 +1,34 @@
 import 'dart:async';
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:http/http.dart' as http;
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:vibration/vibration.dart';
 
-const apiBase = String.fromEnvironment('DRIVE_API', defaultValue: 'http://10.0.2.2:8000');
+const defaultApiBase = String.fromEnvironment('DRIVE_API', defaultValue: 'http://10.0.2.2:8000');
 
-class DriveApi {
-  static Uri uri(String path) => Uri.parse('$apiBase$path');
-
-  static Future<List<Map<String, dynamic>>> drivers() async {
-    final r = await http.get(uri('/api/poc/drivers')).timeout(const Duration(seconds: 8));
-    if (r.statusCode != 200) throw Exception('Driver list failed (${r.statusCode})');
-    return List<Map<String, dynamic>>.from(jsonDecode(r.body));
-  }
-
-  static Future<Map<String, dynamic>> online(String id, String name, String vehicle) async {
-    final r = await http.post(uri('/api/poc/drivers/online'), headers: {'content-type': 'application/json'}, body: jsonEncode({'driver_id': id, 'name': name, 'vehicle': vehicle})).timeout(const Duration(seconds: 8));
-    if (r.statusCode != 200) throw Exception('Could not go online (${r.statusCode})');
-    return Map<String, dynamic>.from(jsonDecode(r.body));
-  }
-
-  static Future<void> offline(String id) async {
-    await http.post(uri('/api/poc/drivers/offline'), headers: {'content-type': 'application/json'}, body: jsonEncode({'driver_id': id})).timeout(const Duration(seconds: 8));
-  }
-
-  static Future<void> location(String id, Position p) async {
-    await http.post(uri('/api/poc/drivers/location'), headers: {'content-type': 'application/json'}, body: jsonEncode({'driver_id': id, 'latitude': p.latitude, 'longitude': p.longitude, 'accuracy': p.accuracy, 'speed': p.speed, 'heading': p.heading})).timeout(const Duration(seconds: 8));
-  }
-
-  static Future<Map<String, dynamic>> book(String pickup, String destination, {String requestedFor = 'now'}) async {
-    final r = await http.post(uri('/api/poc/bookings'), headers: {'content-type': 'application/json'}, body: jsonEncode({'pickup': pickup, 'destination': destination, 'requested_for': requestedFor})).timeout(const Duration(seconds: 8));
-    if (r.statusCode != 201) throw Exception('Booking failed (${r.statusCode})');
-    return Map<String, dynamic>.from(jsonDecode(r.body));
-  }
-
-  static Future<Map<String, dynamic>> offer(String bookingId, String driverId) async {
-    final r = await http.post(uri('/api/poc/bookings/$bookingId/offer'), headers: {'content-type': 'application/json'}, body: jsonEncode({'driver_id': driverId})).timeout(const Duration(seconds: 8));
-    if (r.statusCode != 200) throw Exception('Dispatch failed (${r.statusCode})');
-    return Map<String, dynamic>.from(jsonDecode(r.body));
-  }
-
-  static Future<Map<String, dynamic>> accept(String bookingId, String driverId) async {
-    final r = await http.post(uri('/api/poc/bookings/$bookingId/accept'), headers: {'content-type': 'application/json'}, body: jsonEncode({'driver_id': driverId})).timeout(const Duration(seconds: 8));
-    if (r.statusCode != 200) throw Exception('Accept failed (${r.statusCode})');
-    return Map<String, dynamic>.from(jsonDecode(r.body));
-  }
-
-  static Future<Map<String, dynamic>> decline(String bookingId, String driverId) async {
-    final r = await http.post(uri('/api/poc/bookings/$bookingId/decline'), headers: {'content-type': 'application/json'}, body: jsonEncode({'driver_id': driverId})).timeout(const Duration(seconds: 8));
-    return Map<String, dynamic>.from(jsonDecode(r.body));
-  }
-
-  static Future<List<Map<String, dynamic>>> bookings() async {
-    final r = await http.get(uri('/api/poc/bookings')).timeout(const Duration(seconds: 8));
-    if (r.statusCode != 200) throw Exception('Bookings failed (${r.statusCode})');
-    return List<Map<String, dynamic>>.from(jsonDecode(r.body));
-  }
-
-  static Future<Map<String, dynamic>> status(String id) async {
-    final r = await http.get(uri('/api/poc/bookings/$id')).timeout(const Duration(seconds: 8));
-    if (r.statusCode != 200) throw Exception('Booking status failed (${r.statusCode})');
-    return Map<String, dynamic>.from(jsonDecode(r.body));
-  }
-
-  static Future<void> updateStatus(String id, String status) async {
-    await http.post(uri('/api/poc/bookings/$id/status'), headers: {'content-type': 'application/json'}, body: jsonEncode({'status': status})).timeout(const Duration(seconds: 8));
-  }
+class Config {
+  static String api = defaultApiBase;
+  static Future<void> load() async { final p = await SharedPreferences.getInstance(); api = p.getString('api') ?? defaultApiBase; }
+  static Future<void> save(String value) async { final v = value.trim().replaceFirst(RegExp(r'/$'), ''); final r = await http.get(Uri.parse('$v/health')).timeout(const Duration(seconds: 6)); if (r.statusCode != 200) throw Exception('Health check failed (${r.statusCode})'); final p = await SharedPreferences.getInstance(); await p.setString('api', v); api = v; }
 }
-
-void main() => runApp(const JayalakshmiDriveApp());
-
-class JayalakshmiDriveApp extends StatelessWidget {
-  const JayalakshmiDriveApp({super.key});
-  @override
-  Widget build(BuildContext context) => MaterialApp(title: 'Jayalakshmi DRIVE', debugShowCheckedModeBanner: false, theme: ThemeData(useMaterial3: true, colorSchemeSeed: const Color(0xFF8B1E3F), scaffoldBackgroundColor: const Color(0xFFF7F7F5)), home: const RolePickerScreen());
+class Api {
+  static Uri u(String p) => Uri.parse('${Config.api}$p');
+  static Map<String,String> get jsonHeaders => {'content-type':'application/json'};
+  static Future<dynamic> get(String p) async { final r = await http.get(u(p)).timeout(const Duration(seconds:8)); if(r.statusCode<200||r.statusCode>=300) throw Exception('GET failed ${r.statusCode}'); return jsonDecode(r.body); }
+  static Future<dynamic> post(String p, Map<String,dynamic> b) async { final r=await http.post(u(p),headers:jsonHeaders,body:jsonEncode(b)).timeout(const Duration(seconds:8)); if(r.statusCode<200||r.statusCode>=300) throw Exception('POST failed ${r.statusCode}: ${r.body}'); return jsonDecode(r.body); }
 }
-
-class RolePickerScreen extends StatelessWidget {
-  const RolePickerScreen({super.key});
-  @override
-  Widget build(BuildContext context) => Scaffold(body: SafeArea(child: Padding(padding: const EdgeInsets.all(24), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [const Spacer(), const Text('JAYALAKSHMI', style: TextStyle(fontWeight: FontWeight.w700, letterSpacing: 2)), const SizedBox(height: 6), const Text('DRIVE', style: TextStyle(fontSize: 42, fontWeight: FontWeight.w900)), const SizedBox(height: 10), const Text('Private transport, dispatched like a ride-hailing service.'), const SizedBox(height: 34), _RoleCard(title: 'Manager / Booker', subtitle: 'Request and follow a driver', icon: Icons.person_search_outlined, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const ManagerScreen()))), const SizedBox(height: 14), _RoleCard(title: 'Driver', subtitle: 'Go online and receive trips', icon: Icons.directions_car_outlined, onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const DriverScreen()))), const Spacer(), Center(child: Text('Android field PoC • API $apiBase', style: Theme.of(context).textTheme.bodySmall)), ]))));
-}
-
-class _RoleCard extends StatelessWidget {
-  final String title, subtitle;
-  final IconData icon;
-  final VoidCallback onTap;
-  const _RoleCard({required this.title, required this.subtitle, required this.icon, required this.onTap});
-  @override
-  Widget build(BuildContext context) => Card(clipBehavior: Clip.antiAlias, child: InkWell(onTap: onTap, child: Padding(padding: const EdgeInsets.all(20), child: Row(children: [CircleAvatar(radius: 25, child: Icon(icon)), const SizedBox(width: 16), Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)), const SizedBox(height: 4), Text(subtitle)])), const Icon(Icons.arrow_forward_ios_rounded, size: 18)]))));
-}
-
-class ManagerScreen extends StatefulWidget { const ManagerScreen({super.key}); @override State<ManagerScreen> createState() => _ManagerScreenState(); }
-class _ManagerScreenState extends State<ManagerScreen> {
-  final destination = TextEditingController();
-  final pickup = TextEditingController(text: 'Jayalakshmi MG Road');
-  Timer? timer;
-  String? bookingId;
-  Map<String, dynamic>? booking;
-  bool busy = false;
-  @override void initState() { super.initState(); timer = Timer.periodic(const Duration(seconds: 2), (_) => refresh()); }
-  @override void dispose() { timer?.cancel(); destination.dispose(); pickup.dispose(); super.dispose(); }
-  Future<void> refresh() async { if (!mounted) return; try { if (bookingId != null) { final b = await DriveApi.status(bookingId!); if (mounted) setState(() => booking = b); } } catch (_) {} }
-  Future<void> requestRide() async {
-    if (destination.text.trim().isEmpty || busy) return;
-    setState(() => busy = true);
-    try {
-      final b = await DriveApi.book(pickup.text.trim(), destination.text.trim());
-      bookingId = b['booking_id'];
-      final ds = await DriveApi.drivers();
-      final available = ds.where((d) => d['online'] == true && d['status'] == 'available').toList();
-      if (available.isNotEmpty) await DriveApi.offer(bookingId!, available.first['driver_id']);
-      if (mounted) setState(() { booking = b; busy = false; });
-      await refresh();
-    } catch (e) { if (mounted) { setState(() => busy = false); ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'))); } }
-  }
-  @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Manager / Booker')), body: ListView(padding: const EdgeInsets.all(18), children: [const _MapPlaceholder(), const SizedBox(height: 16), Text('Where are you going?', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)), const SizedBox(height: 12), TextField(controller: pickup, decoration: const InputDecoration(prefixIcon: Icon(Icons.my_location), labelText: 'Pickup', border: OutlineInputBorder())), const SizedBox(height: 10), TextField(controller: destination, decoration: const InputDecoration(prefixIcon: Icon(Icons.search), labelText: 'Destination', hintText: 'Airport, showroom, hotel...', border: OutlineInputBorder())), const SizedBox(height: 12), FilledButton.icon(onPressed: busy ? null : requestRide, icon: const Icon(Icons.flash_on), label: Text(busy ? 'REQUESTING...' : 'RIDE NOW')), if (booking != null) ...[const SizedBox(height: 18), _BookingCard(booking: booking!)] ]));
-}
-
-class DriverScreen extends StatefulWidget { const DriverScreen({super.key}); @override State<DriverScreen> createState() => _DriverScreenState(); }
-class _DriverScreenState extends State<DriverScreen> {
-  final id = 'driver-demo-01';
-  bool online = false, sending = false;
-  Timer? pollTimer, locationTimer;
-  Map<String, dynamic>? offer;
-  String? activeBooking;
-  Position? lastPosition;
-  @override void initState() { super.initState(); pollTimer = Timer.periodic(const Duration(seconds: 2), (_) => poll()); }
-  @override void dispose() { pollTimer?.cancel(); locationTimer?.cancel(); if (online) DriveApi.offline(id); super.dispose(); }
-  Future<void> toggle() async {
-    if (sending) return; setState(() => sending = true);
-    try {
-      if (!online) { await _ensureLocation(); await DriveApi.online(id, 'Driver Demo', 'Toyota Innova • KL-XX-0000'); setState(() => online = true); _startLocation(); }
-      else { await DriveApi.offline(id); locationTimer?.cancel(); setState(() { online = false; offer = null; }); }
-    } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'))); }
-    if (mounted) setState(() => sending = false);
-  }
-  Future<void> _ensureLocation() async {
-    if (!await Geolocator.isLocationServiceEnabled()) throw Exception('Turn on Location on the driver phone.');
-    var p = await Geolocator.checkPermission();
-    if (p == LocationPermission.denied) p = await Geolocator.requestPermission();
-    if (p == LocationPermission.denied || p == LocationPermission.deniedForever) throw Exception('Location permission is required.');
-  }
-  void _startLocation() { locationTimer?.cancel(); locationTimer = Timer.periodic(const Duration(seconds: 5), (_) async { try { final p = await Geolocator.getCurrentPosition(); lastPosition = p; await DriveApi.location(id, p); if (mounted) setState(() {}); } catch (_) {} }); }
-  Future<void> poll() async {
-    if (!online) return;
-    try {
-      final bs = await DriveApi.bookings();
-      final match = bs.where((b) => b['status'] == 'offered' && b['offered_to'] == id).toList();
-      if (match.isNotEmpty && offer == null) { if (await Vibration.hasVibrator()) Vibration.vibrate(duration: 1200); if (mounted) setState(() => offer = match.first); }
-    } catch (_) {}
-  }
-  Future<void> respond(bool accept) async {
-    if (offer == null) return;
-    try { final b = accept ? await DriveApi.accept(offer!['booking_id'], id) : await DriveApi.decline(offer!['booking_id'], id); if (mounted) setState(() { offer = null; activeBooking = accept ? b['booking_id'] : null; }); } catch (e) { if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$e'))); }
-  }
-  Future<void> advance(String status) async { if (activeBooking == null) return; await DriveApi.updateStatus(activeBooking!, status); if (status == 'completed') setState(() => activeBooking = null); }
-  @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Driver')), body: ListView(padding: const EdgeInsets.all(18), children: [Card(child: Padding(padding: const EdgeInsets.all(18), child: Row(children: [const CircleAvatar(radius: 28, child: Icon(Icons.person)), const SizedBox(width: 14), const Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('Driver Demo', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)), Text('Toyota Innova • KL-XX-0000')])), Switch(value: online, onChanged: sending ? null : (_) => toggle())])), const SizedBox(height: 12), Card(child: ListTile(leading: Icon(online ? Icons.wifi : Icons.wifi_off), title: Text(online ? 'You are ONLINE' : 'You are OFFLINE'), subtitle: Text(lastPosition == null ? 'Location not yet reported' : 'GPS ${lastPosition!.latitude.toStringAsFixed(5)}, ${lastPosition!.longitude.toStringAsFixed(5)}'))), if (offer != null) ...[const SizedBox(height: 14), _IncomingOffer(offer: offer!, onAccept: () => respond(true), onDecline: () => respond(false))], if (activeBooking != null) ...[const SizedBox(height: 14), Card(child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('ACTIVE TRIP', style: Theme.of(context).textTheme.labelLarge), const SizedBox(height: 8), Text('Booking $activeBooking', style: const TextStyle(fontWeight: FontWeight.w800)), const SizedBox(height: 14), Wrap(spacing: 8, runSpacing: 8, children: [OutlinedButton(onPressed: () => advance('driver_en_route'), child: const Text('EN ROUTE')), OutlinedButton(onPressed: () => advance('arrived'), child: const Text('ARRIVED')), FilledButton(onPressed: () => advance('in_trip'), child: const Text('START')), FilledButton.tonal(onPressed: () => advance('completed'), child: const Text('COMPLETE'))])]))]) ]));
-}
-
-class _MapPlaceholder extends StatelessWidget { const _MapPlaceholder(); @override Widget build(BuildContext context) => Container(height: 190, decoration: BoxDecoration(color: const Color(0xFFE5E5DF), borderRadius: BorderRadius.circular(18)), child: const Center(child: Column(mainAxisSize: MainAxisSize.min, children: [Icon(Icons.map_outlined, size: 54), SizedBox(height: 8), Text('OpenStreetMap map layer • Phase 2')]))); }
-class _IncomingOffer extends StatelessWidget { final Map<String, dynamic> offer; final VoidCallback onAccept, onDecline; const _IncomingOffer({required this.offer, required this.onAccept, required this.onDecline}); @override Widget build(BuildContext context) => Card(color: Theme.of(context).colorScheme.primaryContainer, child: Padding(padding: const EdgeInsets.all(18), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text('🔔 NEW TRIP', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w900)), const SizedBox(height: 12), Text(offer['destination'] ?? '', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800)), const SizedBox(height: 5), Text('Pickup: ${offer['pickup']}'), const SizedBox(height: 16), Row(children: [Expanded(child: OutlinedButton(onPressed: onDecline, child: const Text('DECLINE'))), const SizedBox(width: 10), Expanded(child: FilledButton(onPressed: onAccept, child: const Text('ACCEPT')))])]))); }
-class _BookingCard extends StatelessWidget { final Map<String, dynamic> booking; const _BookingCard({required this.booking}); @override Widget build(BuildContext context) { final status = booking['status'] ?? 'searching'; return Card(child: ListTile(leading: CircleAvatar(child: Icon(status == 'assigned' ? Icons.check : Icons.hourglass_top)), title: Text(status.toString().toUpperCase(), style: const TextStyle(fontWeight: FontWeight.w800)), subtitle: Text('${booking['pickup']} → ${booking['destination']}\n${booking['driver_id'] == null ? 'Searching for driver…' : 'Driver: ${booking['driver_id']}'}'))); } }
+Future<void> main() async { WidgetsFlutterBinding.ensureInitialized(); await Config.load(); runApp(const App()); }
+class App extends StatelessWidget { const App({super.key}); @override Widget build(BuildContext c)=>MaterialApp(title:'Jayalakshmi DRIVE',debugShowCheckedModeBanner:false,theme:ThemeData(useMaterial3:true,colorSchemeSeed:const Color(0xFF8B1E3F)),home:const Home()); }
+class Home extends StatefulWidget { const Home({super.key}); @override State<Home> createState()=>_HomeState(); }
+class _HomeState extends State<Home> { @override Widget build(BuildContext c)=>Scaffold(body:SafeArea(child:Padding(padding:const EdgeInsets.all(24),child:Column(children:[const Spacer(),const Text('JAYALAKSHMI',style:TextStyle(fontWeight:FontWeight.w700,letterSpacing:2)),const Text('DRIVE',style:TextStyle(fontSize:44,fontWeight:FontWeight.w900)),const SizedBox(height:8),const Text('Field PoC: manager booking + driver dispatch'),const SizedBox(height:24),Card(child:ListTile(leading:const Icon(Icons.cloud_outlined),title:const Text('PoC server'),subtitle:Text(Config.api),trailing:const Icon(Icons.settings),onTap:()async{await Navigator.push(c,MaterialPageRoute(builder:(_)=>const ServerSetup()));if(mounted)setState((){});})),const SizedBox(height:14),RoleCard('Manager / Booker','Request a driver',Icons.person_search,()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>const Manager()))),const SizedBox(height:12),RoleCard('Driver','Go online and receive calls',Icons.directions_car,()=>Navigator.push(c,MaterialPageRoute(builder:(_)=>const Driver()))),const Spacer(),const Text('Android field PoC'),])))); } }
+class RoleCard extends StatelessWidget { final String title,sub; final IconData icon; final VoidCallback tap; const RoleCard(this.title,this.sub,this.icon,this.tap,{super.key}); @override Widget build(BuildContext c)=>Card(child:ListTile(leading:CircleAvatar(child:Icon(icon)),title:Text(title,style:const TextStyle(fontWeight:FontWeight.w700)),subtitle:Text(sub),trailing:const Icon(Icons.chevron_right),onTap:tap)); }
+class ServerSetup extends StatefulWidget { const ServerSetup({super.key}); @override State<ServerSetup> createState()=>_ServerSetupState(); }
+class _ServerSetupState extends State<ServerSetup>{ late final TextEditingController ctl=TextEditingController(text:Config.api); bool busy=false; @override void dispose(){ctl.dispose();super.dispose();} Future<void> save()async{setState(()=>busy=true);try{await Config.save(ctl.text);if(mounted){ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content:Text('Connected and saved')));Navigator.pop(context);}}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('$e')));}if(mounted)setState(()=>busy=false);} @override Widget build(BuildContext c)=>Scaffold(appBar:AppBar(title:const Text('PoC Server')),body:Padding(padding:const EdgeInsets.all(20),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[Text('Server URL',style:Theme.of(c).textTheme.headlineSmall?.copyWith(fontWeight:FontWeight.w800)),const SizedBox(height:8),const Text('For the driver phone on the same Wi-Fi, use your laptop LAN address, e.g. http://192.168.1.20:8000.'),const SizedBox(height:16),TextField(controller:ctl,keyboardType:TextInputType.url,decoration:const InputDecoration(border:OutlineInputBorder(),prefixIcon:Icon(Icons.link))),const SizedBox(height:16),SizedBox(width:double.infinity,child:FilledButton(onPressed:busy?null:save,child:Text(busy?'TESTING...':'TEST & SAVE')))]));}}
+class Manager extends StatefulWidget { const Manager({super.key}); @override State<Manager> createState()=>_ManagerState(); }
+class _ManagerState extends State<Manager>{ final dest=TextEditingController(); final pickup=TextEditingController(text:'Jayalakshmi MG Road'); Timer? timer; String? id; Map<String,dynamic>? booking; bool busy=false; @override void initState(){super.initState();timer=Timer.periodic(const Duration(seconds:2),(_)=>refresh());} @override void dispose(){timer?.cancel();dest.dispose();pickup.dispose();super.dispose();} Future<void> refresh()async{if(id==null)return;try{final b=await Api.get('/api/poc/bookings/$id');if(mounted)setState(()=>booking=Map<String,dynamic>.from(b));}catch(_){}} Future<void> book()async{if(dest.text.trim().isEmpty||busy)return;setState(()=>busy=true);try{final b=Map<String,dynamic>.from(await Api.post('/api/poc/bookings',{'pickup':pickup.text.trim(),'destination':dest.text.trim()}));id=b['booking_id'];final ds=List<Map<String,dynamic>>.from(await Api.get('/api/poc/drivers'));final a=ds.where((d)=>d['online']==true&&d['status']=='available').toList();if(a.isNotEmpty)await Api.post('/api/poc/bookings/$id/offer',{'driver_id':a.first['driver_id']});await refresh();}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('$e')));}if(mounted)setState(()=>busy=false);} @override Widget build(BuildContext c)=>Scaffold(appBar:AppBar(title:const Text('Manager / Booker')),body:ListView(padding:const EdgeInsets.all(18),children:[const MapBox(),const SizedBox(height:16),Text('Where are you going?',style:Theme.of(c).textTheme.headlineSmall?.copyWith(fontWeight:FontWeight.w800)),const SizedBox(height:12),TextField(controller:pickup,decoration:const InputDecoration(labelText:'Pickup',prefixIcon:Icon(Icons.my_location),border:OutlineInputBorder())),const SizedBox(height:10),TextField(controller:dest,decoration:const InputDecoration(labelText:'Destination',hintText:'Airport, showroom, hotel...',prefixIcon:Icon(Icons.search),border:OutlineInputBorder())),const SizedBox(height:12),SizedBox(height:52,child:FilledButton.icon(onPressed:busy?null:book,icon:const Icon(Icons.flash_on),label:Text(busy?'REQUESTING...':'RIDE NOW'))),if(booking!=null) ...[const SizedBox(height:16),BookingCard(booking!)] ]));}
+class Driver extends StatefulWidget { const Driver({super.key}); @override State<Driver> createState()=>_DriverState(); }
+class _DriverState extends State<Driver>{final driverId='driver-demo-01';bool online=false,busy=false;Timer? poll,loc;Map<String,dynamic>? offer;String? active;Position? pos;@override void initState(){super.initState();poll=Timer.periodic(const Duration(seconds:2),(_)=>check());}@override void dispose(){poll?.cancel();loc?.cancel();if(online)Api.post('/api/poc/drivers/offline',{'driver_id':driverId});super.dispose();}Future<void> toggle()async{if(busy)return;setState(()=>busy=true);try{if(!online){await locationPermission();await Api.post('/api/poc/drivers/online',{'driver_id':driverId,'name':'Driver Demo','vehicle':'Toyota Innova • KL-XX-0000'});setState(()=>online=true);startGps();}else{await Api.post('/api/poc/drivers/offline',{'driver_id':driverId});loc?.cancel();setState(()=>online=false);}}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('$e')));}if(mounted)setState(()=>busy=false);}Future<void> locationPermission()async{if(!await Geolocator.isLocationServiceEnabled())throw Exception('Turn on phone Location');var p=await Geolocator.checkPermission();if(p==LocationPermission.denied)p=await Geolocator.requestPermission();if(p==LocationPermission.denied||p==LocationPermission.deniedForever)throw Exception('Location permission is required');}void startGps(){loc?.cancel();loc=Timer.periodic(const Duration(seconds:5),(_)async{try{final p=await Geolocator.getCurrentPosition();pos=p;await Api.post('/api/poc/drivers/location',{'driver_id':driverId,'latitude':p.latitude,'longitude':p.longitude,'accuracy':p.accuracy,'speed':p.speed,'heading':p.heading});if(mounted)setState((){});}catch(_){}});}Future<void> check()async{if(!online)return;try{final bs=List<Map<String,dynamic>>.from(await Api.get('/api/poc/bookings'));final m=bs.where((b)=>b['status']=='offered'&&b['offered_to']==driverId).toList();if(m.isNotEmpty&&offer==null){if(await Vibration.hasVibrator())Vibration.vibrate(duration:1200);if(mounted)setState(()=>offer=m.first);}}catch(_){}}Future<void> answer(bool yes)async{if(offer==null)return;try{final path=yes?'accept':'decline';final b=Map<String,dynamic>.from(await Api.post('/api/poc/bookings/${offer!['booking_id']}/$path',{'driver_id':driverId}));if(mounted)setState((){offer=null;active=yes?b['booking_id']:null;});}catch(e){if(mounted)ScaffoldMessenger.of(context).showSnackBar(SnackBar(content:Text('$e')));}}Future<void> state(String s)async{if(active==null)return;await Api.post('/api/poc/bookings/$active/status',{'status':s});if(s=='completed'&&mounted)setState(()=>active=null);} @override Widget build(BuildContext c)=>Scaffold(appBar:AppBar(title:const Text('Driver')),body:ListView(padding:const EdgeInsets.all(18),children:[Card(child:ListTile(leading:const CircleAvatar(child:Icon(Icons.person)),title:const Text('Driver Demo',style:TextStyle(fontWeight:FontWeight.w800)),subtitle:const Text('Toyota Innova • KL-XX-0000'),trailing:Switch(value:online,onChanged:busy?null:(_)=>toggle()))),Card(child:ListTile(leading:Icon(online?Icons.wifi:Icons.wifi_off),title:Text(online?'ONLINE':'OFFLINE'),subtitle:Text(pos==null?'GPS waiting':'GPS ${pos!.latitude.toStringAsFixed(5)}, ${pos!.longitude.toStringAsFixed(5)}'))),if(offer!=null) ...[const SizedBox(height:12),Card(color:Theme.of(c).colorScheme.primaryContainer,child:Padding(padding:const EdgeInsets.all(18),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('🔔 NEW TRIP',style:TextStyle(fontSize:20,fontWeight:FontWeight.w900)),const SizedBox(height:8),Text(offer!['destination'],style:Theme.of(c).textTheme.headlineSmall?.copyWith(fontWeight:FontWeight.w800)),Text('Pickup: ${offer!['pickup']}'),const SizedBox(height:14),Row(children:[Expanded(child:OutlinedButton(onPressed:()=>answer(false),child:const Text('DECLINE'))),const SizedBox(width:10),Expanded(child:FilledButton(onPressed:()=>answer(true),child:const Text('ACCEPT')))])]))),],if(active!=null) ...[const SizedBox(height:12),Card(child:Padding(padding:const EdgeInsets.all(18),child:Column(crossAxisAlignment:CrossAxisAlignment.start,children:[const Text('ACTIVE TRIP',style:TextStyle(fontWeight:FontWeight.w800)),Text(active!),Wrap(spacing:8,children:[OutlinedButton(onPressed:()=>state('driver_en_route'),child:const Text('EN ROUTE')),OutlinedButton(onPressed:()=>state('arrived'),child:const Text('ARRIVED')),FilledButton(onPressed:()=>state('in_trip'),child:const Text('START')),FilledButton.tonal(onPressed:()=>state('completed'),child:const Text('COMPLETE'))])])))]));}
+class MapBox extends StatelessWidget{const MapBox({super.key});@override Widget build(BuildContext c)=>Container(height:190,decoration:BoxDecoration(color:const Color(0xFFE5E5DF),borderRadius:BorderRadius.circular(18)),child:const Center(child:Column(mainAxisSize:MainAxisSize.min,children:[Icon(Icons.map_outlined,size:54),SizedBox(height:8),Text('OpenStreetMap layer — next UI phase')])));}
+class BookingCard extends StatelessWidget{final Map<String,dynamic>b;const BookingCard(this.b,{super.key});@override Widget build(BuildContext c)=>Card(child:ListTile(leading:CircleAvatar(child:Icon(b['status']=='assigned'?Icons.check:Icons.hourglass_top)),title:Text((b['status']??'searching').toString().toUpperCase(),style:const TextStyle(fontWeight:FontWeight.w800)),subtitle:Text('${b['pickup']} → ${b['destination']}\n${b['driver_id']==null?'Searching for driver…':'Driver: ${b['driver_id']}'}')));}
