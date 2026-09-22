@@ -203,14 +203,28 @@ def decline_booking(booking_id: str, payload: BookingActionRequest) -> dict[str,
     return booking
 
 
+POC_STATUS_TRANSITIONS = {
+    "searching": {"offered", "cancelled"},
+    "offered": {"assigned", "searching", "cancelled"},
+    "assigned": {"driver_en_route", "cancelled"},
+    "driver_en_route": {"arrived", "cancelled"},
+    "arrived": {"in_trip", "cancelled"},
+    "in_trip": {"completed", "cancelled"},
+    "completed": set(),
+    "cancelled": set(),
+}
+
+
 @app.post("/api/poc/bookings/{booking_id}/status")
 def update_poc_booking(booking_id: str, payload: BookingStatusRequest) -> dict[str, Any]:
     booking = bookings.get(booking_id)
     if not booking:
         raise HTTPException(404, "Booking not found")
-    allowed = {"assigned", "driver_en_route", "arrived", "in_trip", "completed", "cancelled"}
-    if payload.status not in allowed:
+    if payload.status not in POC_STATUS_TRANSITIONS:
         raise HTTPException(422, "Unsupported booking status")
+    current_status = booking["status"]
+    if payload.status not in POC_STATUS_TRANSITIONS[current_status]:
+        raise HTTPException(409, f"Invalid booking transition: {current_status} -> {payload.status}")
     booking["status"] = payload.status
     if payload.status == "completed" and booking.get("driver_id") in drivers:
         drivers[booking["driver_id"]]["status"] = "available"
