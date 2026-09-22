@@ -40,8 +40,17 @@ def test_manager_driver_field_poc_lifecycle() -> None:
             f"/api/poc/bookings/{booking_id}/status",
             json={"status": "completed"},
         )
-        assert response.status_code == 200
-        assert response.json()["status"] == "completed"
+        assert response.status_code == 409
+        assert response.json()["detail"] == "Invalid booking transition: assigned -> completed"
+
+        for next_status in ("driver_en_route", "arrived", "in_trip", "completed"):
+            response = client.post(
+                f"/api/poc/bookings/{booking_id}/status",
+                json={"status": next_status},
+            )
+            assert response.status_code == 200
+            assert response.json()["status"] == next_status
+
         assert drivers[driver_id]["status"] == "available"
         bookings.pop(booking_id, None)
         drivers.pop(driver_id, None)
