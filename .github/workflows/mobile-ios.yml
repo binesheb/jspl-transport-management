@@ -50,7 +50,7 @@ jobs:
           cp -R build/ios/iphoneos/Runner.app build/ios-artifact/Runner.app
 
       - name: Upload iOS app bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: jayalakshmi-drive-ios-${{ github.sha }}
           path: mobile/build/ios-artifact/Runner.app
