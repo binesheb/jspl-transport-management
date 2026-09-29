@@ -98,7 +98,7 @@ jobs:
 
       - name: Publish test APK release
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: android-poc-${{ github.sha }}
           name: Jayalakshmi DRIVE Android PoC ${{ github.sha }}
