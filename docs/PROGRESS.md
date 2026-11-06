@@ -1,7 +1,7 @@
 # Jayalakshmi DRIVE — Progress Tracker
 
-**Tracker version:** 0.3.0  
-**Last updated:** 2026-09-09
+**Tracker version:** 0.3.1  
+**Last updated:** 2026-09-19
 
 > This tracker is deliberately incremental. A phase is not complete merely because code exists; it must meet its exit criteria and have evidence recorded.
 
@@ -54,7 +54,8 @@
 
 ### Not yet field-test complete
 
-- [ ] Successful CI build verified.
+- [x] Successful Arduino/ESP32 CI build verified on `main`.
+- [x] Successful Android CI build produced a release APK artifact.
 - [ ] APK artifact downloaded and installed on a physical Android phone.
 - [ ] Laptop backend deployed and reachable from the phone over LAN/tunnel.
 - [ ] Real two-device manager/driver test completed.
@@ -107,4 +108,4 @@ Whenever a phase changes:
 
 ## Current next action
 
-**Finish the Android CI/build verification, then produce the first installable Manager + Driver field-test APK and validate the two-device flow against the laptop PoC backend.**
+**Download and install the existing Android PoC APK on a physical Android phone, connect it to the laptop PoC backend, and validate the real two-device Manager + Driver flow before expanding the dispatch or design-system scope.**

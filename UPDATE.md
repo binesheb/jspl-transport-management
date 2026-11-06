@@ -33,11 +33,15 @@ For updates, use a safe Git-based flow so local changes are never silently overw
 ```text
 git fetch origin main
 git status --short
-git diff --exit-code || stop and review local changes
+git diff --exit-code
+git diff --cached --exit-code
+# stop and review local changes if either diff command reports changes
 git merge --ff-only origin/main
 bash scripts/bootstrap.sh
 docker compose up -d --remove-orphans
 ```
+
+Both unstaged **and staged** changes must be reviewed before updating. The separate cached diff check prevents a staged local change from being missed by the update guard.
 
 Run the repository's documented database migrations or schema updates, if applicable, before declaring the deployment healthy. Verify the API, dashboard, and any required device connectivity after the update.
 
