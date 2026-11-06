@@ -104,13 +104,13 @@ jobs:
       contents: write
     steps:
       - name: Download verified APK
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: jayalakshmi-drive-android-${{ github.sha }}
           path: release
 
       - name: Publish test APK release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           tag_name: android-poc-${{ github.sha }}
           name: Jayalakshmi DRIVE Android PoC ${{ github.sha }}
