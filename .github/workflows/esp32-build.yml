@@ -20,7 +20,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install PlatformIO
-        run: pip install --upgrade platformio
+        run: pip install platformio==6.2.0
       - name: Build ESP32 firmware
         run: pio run
       - name: Verify firmware binary
