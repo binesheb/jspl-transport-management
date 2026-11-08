@@ -26,7 +26,7 @@ jobs:
       - name: Verify firmware binary
         run: test -s .pio/build/esp32dev/firmware.bin
       - name: Upload build artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: jspl-esp32-firmware-${{ github.sha }}
           path: firmware/esp32-minimal/.pio/build/esp32dev/firmware.bin
