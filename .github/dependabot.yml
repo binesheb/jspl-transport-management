@@ -1,7 +1,11 @@
 version: 2
 updates:
   - package-ecosystem: docker
-    directory: /
+    directory: /backend
+    schedule: { interval: weekly }
+    open-pull-requests-limit: 5
+  - package-ecosystem: docker
+    directory: /dashboard
     schedule: { interval: weekly }
     open-pull-requests-limit: 5
   - package-ecosystem: github-actions
